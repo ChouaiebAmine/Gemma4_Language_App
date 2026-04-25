@@ -1,6 +1,2 @@
 backend/.env
-/backend/__pycache__
-/backend/agents/activities_generator/__pycache__
-/backend/agents/topic_generator/__pycache__
-/backend/routes/__pycache__
-/backend/routes/topics/__pycache__
+__pycache__/
