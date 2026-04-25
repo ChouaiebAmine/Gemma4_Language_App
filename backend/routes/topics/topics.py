@@ -9,6 +9,9 @@ from google.genai import types
 
 import json
 from uuid import uuid4
+from database import topics_collection
+from models import TopicModel
+from datetime import datetime
 
 session_service = InMemorySessionService()
 APP_NAME = "Language Learning App"
@@ -38,8 +41,16 @@ async def get_topics():
     for event in events:
         if event.is_final_response():
             text = event.content.parts[0].text
-            topics = Topics.model_validate_json(text)
-            return topics
+            topics_data = Topics.model_validate_json(text)
+            
+            # Save to MongoDB
+            topic_doc = TopicModel(
+                topics_base=topics_data.topics_base,
+                topics_target=topics_data.topics_target
+            ).model_dump()
+            await topics_collection.insert_one(topic_doc)
+            
+            return topics_data
     return {}
 
 
@@ -47,4 +58,5 @@ async def get_topics():
 @router.post("/")
 async def create_topic(topic_data: dict):
     """Create a new topic"""
+    await topics_collection.insert_one(topic_data)
     return {"message": "Topic created", "data": topic_data}
