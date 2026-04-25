@@ -12,7 +12,8 @@ from google.genai import types
 
 import json
 from uuid import uuid4
-
+from database import activities_collection
+from models import ActivityModel
 
 session_service = InMemorySessionService()
 APP_NAME = "Language Learning App"
@@ -58,6 +59,15 @@ async def generate_listening_activity(difficulty: int):
         if event.is_final_response():
             text = event.content.parts[0].text
             output = schema.model_validate_json(text)
+            
+            #Save to MongoDB
+            activity_doc = ActivityModel(
+                type="listening",
+                difficulty=difficulty,
+                content=output.model_dump()
+            ).model_dump()
+            await activities_collection.insert_one(activity_doc)
+            
             return output
     return {}
 
@@ -97,5 +107,14 @@ async def generate_writing_activity(difficulty: int):
         if event.is_final_response():
             text = event.content.parts[0].text
             output = schema.model_validate_json(text)
+            
+            # save to Mongo
+            activity_doc = ActivityModel(
+                type="writing",
+                difficulty=difficulty,
+                content=output.model_dump()
+            ).model_dump()
+            await activities_collection.insert_one(activity_doc)
+            
             return output
     return {}
