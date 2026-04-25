@@ -7,7 +7,7 @@ import os
 
 load_dotenv()
 
-model = "gemini-3.1-flash-lite-preview"
+model = "gemma-4-31b-it"
 
 class WordEntry(BaseModel):
     word: str

@@ -18,7 +18,6 @@ class Topics(BaseModel):
 #     api_base="https://openrouter.ai/api/v1",
 #     temperature=1.0
 # )
-
 root_agent = Agent(
     model='gemma-4-31b-it',
     generate_content_config=types.GenerateContentConfig(temperature=1.0),
