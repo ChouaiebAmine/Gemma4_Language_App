@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from typing import List
+from pydantic import BaseModel, Field
 
 from agents.topic_generator.agent import Topics
 from agents.activities_generator.listening_agent import easy_listening_agent, EasyListening, medium_listening_agent, MediumListening, hard_listening_agent, HardListening
@@ -23,9 +24,15 @@ router = APIRouter(prefix="/activities", tags=["activities"])
 
 
 
+class GenerateActivityBody(BaseModel):
+    user_id: str = Field(default="user")
+    topic: str = Field(default="Ordering at a restaurant")
+    user_language: str = Field(default="english")
+    target_language: str = Field(default="spanish")
+
 
 @router.post("/listening")
-async def generate_listening_activity(difficulty: int):
+async def generate_listening_activity(difficulty: int, body: GenerateActivityBody):
 
     agent = easy_listening_agent
     schema = EasyListening
@@ -41,11 +48,11 @@ async def generate_listening_activity(difficulty: int):
             agent = hard_listening_agent
             schema = HardListening
     
-    session = await session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=str(uuid4()),
+    session = await session_service.create_session(app_name=APP_NAME, user_id=body.user_id, session_id=str(uuid4()),
         state={
-            "topic": "Ordering at a restaurant",
-            "user_language": "english",
-            "target_language": "spanish",
+            "topic": body.topic,
+            "user_language": body.user_language,
+            "target_language": body.target_language,
     })
 
     runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service, auto_create_session=True)
@@ -55,7 +62,7 @@ async def generate_listening_activity(difficulty: int):
         parts=[types.Part(text="start")]
     )
 
-    async for event in runner.run_async(user_id=USER_ID, session_id=session.id, new_message=content):
+    async for event in runner.run_async(user_id=body.user_id, session_id=session.id, new_message=content):
         if event.is_final_response():
             text = event.content.parts[0].text
             output = schema.model_validate_json(text)
@@ -63,6 +70,7 @@ async def generate_listening_activity(difficulty: int):
             #Save to MongoDB
             activity_doc = ActivityModel(
                 type="listening",
+                level="A1",
                 difficulty=difficulty,
                 content=output.model_dump()
             ).model_dump()
@@ -72,8 +80,10 @@ async def generate_listening_activity(difficulty: int):
     return {}
 
 
+
+
 @router.post("/writing")
-async def generate_writing_activity(difficulty: int):
+async def generate_writing_activity(difficulty: int, body: GenerateActivityBody):
 
     agent = easy_writing_agent
     schema = EasyWriting
@@ -89,11 +99,11 @@ async def generate_writing_activity(difficulty: int):
             agent = hard_listening_agent
             schema = HardListening
     
-    session = await session_service.create_session(app_name=APP_NAME, user_id=USER_ID, session_id=str(uuid4()),
+    session = await session_service.create_session(app_name=APP_NAME, user_id=body.user_id, session_id=str(uuid4()),
         state={
-            "topic": "Ordering at a restaurant",
-            "user_language": "english",
-            "target_language": "spanish",
+            "topic": body.topic,
+            "user_language": body.user_language,
+            "target_language": body.target_language,
     })
 
     runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service, auto_create_session=True)
@@ -103,7 +113,7 @@ async def generate_writing_activity(difficulty: int):
         parts=[types.Part(text="start")]
     )
 
-    async for event in runner.run_async(user_id=USER_ID, session_id=session.id, new_message=content):
+    async for event in runner.run_async(user_id=body.user_id, session_id=session.id, new_message=content):
         if event.is_final_response():
             text = event.content.parts[0].text
             output = schema.model_validate_json(text)
@@ -111,6 +121,7 @@ async def generate_writing_activity(difficulty: int):
             # save to Mongo
             activity_doc = ActivityModel(
                 type="writing",
+                level="A1",
                 difficulty=difficulty,
                 content=output.model_dump()
             ).model_dump()

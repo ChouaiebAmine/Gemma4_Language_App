@@ -10,13 +10,13 @@ class TopicModel(BaseModel):
 
 class ActivityModel(BaseModel):
     type : str #Listening or writing
-    diffculty: int
+    difficulty: int
     level: str
     content: Dict[str, Any]
     created_at: datetime = Field(default_factory=datetime.utcnow)
-class EvaluateModel(BaseModel):
+class EvaluationModel(BaseModel):
     type : str
-    diffculty: int
+    difficulty: int
     user_input: str
     reference: str
     result: Dict[str, Any]
