@@ -56,7 +56,6 @@ async def get_topics():
 
 
 @router.post("/")
-async def create_topic(topic_data: dict):
-    """Create a new topic"""
-    await topics_collection.insert_one(topic_data)
-    return {"message": "Topic created", "data": topic_data}
+async def create_topic(topic: TopicModel):
+    new_topic = await topics_collection.insert_one(topic.model_dump())
+    return {"id": str(new_topic.inserted_id)}
