@@ -67,20 +67,56 @@ async def generate_listening_activity(difficulty: int, body: GenerateActivityBod
             text = event.content.parts[0].text
             output = schema.model_validate_json(text)
             
-            #Save to MongoDB
+            # Prepare response and save to MongoDB
+            result = output.model_dump()
+            
+            # Add fields expected by frontend
+            result["title"] = f"{body.topic} (Listening)"
+            result["type"] = "listening"
+            
+            # Save to MongoDB
             activity_doc = ActivityModel(
                 type="listening",
                 level="A1",
                 difficulty=difficulty,
-                content=output.model_dump()
+                content=result
             ).model_dump()
-            await activities_collection.insert_one(activity_doc)
+            activity_doc["topic_id"] = body.topic # Using topic name as ID for now or from body
+            activity_doc["title"] = result["title"]
             
-            return output
+            inserted = await activities_collection.insert_one(activity_doc)
+            result["id"] = str(inserted.inserted_id)
+            
+            return result
     return {}
 
 
 
+
+@router.get("/")
+async def get_activities(topic_id: str = None):
+    query = {}
+    if topic_id:
+        query["topic_id"] = topic_id
+    cursor = activities_collection.find(query)
+    activities = await cursor.to_list(length=100)
+    for activity in activities:
+        activity["id"] = str(activity.pop("_id"))
+        # Flatten content if needed for frontend
+        if "content" in activity:
+            for key, value in activity["content"].items():
+                if key not in activity:
+                    activity[key] = value
+    return activities
+
+@router.post("/generate/{topic_id}")
+async def generate_activities_for_topic(topic_id: str):
+    # This is a helper to trigger generation from the frontend
+    # For now, generate one listening and one writing activity
+    body = GenerateActivityBody(topic=topic_id)
+    l_activity = await generate_listening_activity(difficulty=1, body=body)
+    w_activity = await generate_writing_activity(difficulty=1, body=body)
+    return [l_activity, w_activity]
 
 @router.post("/writing")
 async def generate_writing_activity(difficulty: int, body: GenerateActivityBody):
@@ -96,6 +132,7 @@ async def generate_writing_activity(difficulty: int, body: GenerateActivityBody)
             agent = medium_writing_agent
             schema = MediumWriting
         case 2:
+            # Note: hard_writing_agent seems missing, using hard_listening_agent as placeholder
             agent = hard_listening_agent
             schema = HardListening
     
@@ -118,14 +155,25 @@ async def generate_writing_activity(difficulty: int, body: GenerateActivityBody)
             text = event.content.parts[0].text
             output = schema.model_validate_json(text)
             
+            # Prepare response and save to MongoDB
+            result = output.model_dump()
+            
+            # Add fields expected by frontend
+            result["title"] = f"{body.topic} (Writing)"
+            result["type"] = "writing"
+            
             # save to Mongo
             activity_doc = ActivityModel(
                 type="writing",
                 level="A1",
                 difficulty=difficulty,
-                content=output.model_dump()
+                content=result
             ).model_dump()
-            await activities_collection.insert_one(activity_doc)
+            activity_doc["topic_id"] = body.topic
+            activity_doc["title"] = result["title"]
             
-            return output
+            inserted = await activities_collection.insert_one(activity_doc)
+            result["id"] = str(inserted.inserted_id)
+            
+            return result
     return {}

@@ -22,3 +22,25 @@ users_collection = database.get_collection("users")
 achievements_collection = database.get_collection("achievements")
 user_progress_collection = database.get_collection("user_progress")
 activity_logs_collection = database.get_collection("activity_logs")
+
+
+import asyncio
+from database import languages_collection
+
+async def seed_languages():
+    # Define the languages you want to offer
+    sample_languages = [
+        {"name": "Spanish", "code": "ES", "native_speakers": 485000, "level": "Beginner"},
+        {"name": "French", "code": "FR", "native_speakers": 77000, "level": "Intermediate"},
+        {"name": "German", "code": "DE", "native_speakers": 76000, "level": "Beginner"},
+        {"name": "Japanese", "code": "JA", "native_speakers": 125000, "level": "Advanced"},
+        {"name": "Italian", "code": "IT", "native_speakers": 64000, "level": "Beginner"}
+    ]
+    
+    # Clear existing (optional) and insert new ones
+    await languages_collection.delete_many({})
+    result = await languages_collection.insert_many(sample_languages)
+    print(f"Successfully added {len(result.inserted_ids)} languages to the database!")
+
+if __name__ == "__main__":
+    asyncio.run(seed_languages())
