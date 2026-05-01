@@ -29,7 +29,10 @@ export const LanguageProvider = ({ children }) => {
   }, []);
 
   // Select a language and fetch its topics
-  const selectLanguage = useCallback(async (languageId) => {
+  const selectLanguage = useCallback(async (languageData) => {
+  // Extract ID if an object was passed
+  const languageId = typeof languageData === 'object' ? (languageData._id || languageData.id) : languageData;
+
   if (!languageId) {
     console.warn("Attempted to select language with undefined ID");
     return;
@@ -89,7 +92,8 @@ const generateAiTopics = useCallback(async () => {
   }
 }, []);
   // Get activities for a topic
-  const fetchActivities = useCallback(async (topicId) => {
+  const fetchActivities = useCallback(async (topicData) => {
+    const topicId = typeof topicData === 'object' ? (topicData.id || topicData._id) : topicData;
     try {
       setIsLoading(true);
       setError(null);
@@ -105,7 +109,8 @@ const generateAiTopics = useCallback(async () => {
   }, []);
 
   // Generate activities using AI
-  const generateActivities = useCallback(async (topicId) => {
+  const generateActivities = useCallback(async (topicData) => {
+    const topicId = typeof topicData === 'object' ? (topicData.id || topicData._id) : topicData;
     try {
       setIsLoading(true);
       setError(null);

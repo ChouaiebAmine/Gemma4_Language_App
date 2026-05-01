@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from typing import List
+from bson import ObjectId
 
 from agents.topic_generator.agent import root_agent as topic_generator_agent
 from agents.topic_generator.agent import Topics
@@ -56,6 +57,7 @@ async def get_topics(language_id: str = None, user_lang: str = "english", target
     )
 
     runner = Runner(app_name=APP_NAME, agent=topic_generator_agent, session_service=session_service, auto_create_session=True)
+
     content = types.Content(role="user", parts=[types.Part(text="start")])
 
     events = runner.run(user_id=USER_ID, session_id=session.id, new_message=content)
@@ -93,8 +95,11 @@ async def get_topics(language_id: str = None, user_lang: str = "english", target
 async def get_topic(topic_id: str):
     # topic_id might be "mongoId_index"
     if "_" in topic_id:
-        mongo_id, index = topic_id.split("_")
-        doc = await topics_collection.find_one({"_id": ObjectId(mongo_id)})
+        try:
+            mongo_id, index = topic_id.split("_")
+            doc = await topics_collection.find_one({"_id": ObjectId(mongo_id)})
+        except:
+            raise HTTPException(status_code=400, detail="Invalid topic ID format")
         if doc:
             base = doc.get("topics_base", [])
             target = doc.get("topics_target", [])
@@ -106,7 +111,10 @@ async def get_topic(topic_id: str):
                 "language_id": doc.get("language_id")
             }
     else:
-        doc = await topics_collection.find_one({"_id": ObjectId(topic_id)})
+        try:
+            doc = await topics_collection.find_one({"_id": ObjectId(topic_id)})
+        except:
+            raise HTTPException(status_code=400, detail="Invalid topic ID format")
         if doc:
             doc["id"] = str(doc.pop("_id"))
             return doc

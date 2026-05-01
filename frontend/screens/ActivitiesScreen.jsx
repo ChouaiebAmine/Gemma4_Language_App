@@ -69,7 +69,7 @@ export default function ActivitiesScreen({ navigation, route }) {
         />
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>✨</Text>
+          <Text style={styles.emptyIcon}></Text>
           <Text style={styles.emptyText}>No activities yet</Text>
           <Text style={styles.emptyDesc}>Generate activities for this topic using AI</Text>
           <TouchableOpacity

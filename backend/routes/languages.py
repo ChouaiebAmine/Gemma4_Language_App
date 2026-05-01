@@ -19,7 +19,11 @@ async def get_all_languages():
 
 @router.get("/{language_id}")
 async def get_language(language_id: str):
-    language = await languages_collection.find_one({"_id": ObjectId(language_id)})
+    try:
+        language = await languages_collection.find_one({"_id": ObjectId(language_id)})
+    except:
+        raise HTTPException(status_code=400, detail="Invalid language ID format")
+        
     if not language:
         raise HTTPException(status_code=404, detail="Language not found")
     
@@ -33,7 +37,7 @@ async def enroll_language(user_id: str, enrollment: LanguageEnrollmentModel):
         {"$addToSet": {"enrolled_languages": enrollment.model_dump()}},
         upsert=True
     )
-    return {"status": "success", "message": "Language enrolled successfully"}[cite: 7]
+    return {"status": "success", "message": "Language enrolled successfully"}
 
 # Admin route to add a language to the global list
 @router.post("/")
