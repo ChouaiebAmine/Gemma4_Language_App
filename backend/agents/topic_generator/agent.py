@@ -24,10 +24,11 @@ root_agent = Agent(
     # model=model,
     name='topic_generator_agent',
     description='An agent useful for generating topics for a language learning app',
-    instruction="""Suggest 3 topics for a language learning app. Choose real-life, practical, every-day topics.
-    You MUST provide the 'topics_base' in {user_language}.
-    You MUST provide the 'topics_target' in {target_language}.
-    Respond only with a JSON object, no preamble, no markdown formatting
+    instruction="""Suggest 6 topics for a language learning app. Choose real-life, practical, every-day topics (e.g. Greetings, Food, Travel, Shopping, Health, Work).
+    You MUST provide the 'topics_base' list written entirely in {user_language}.
+    You MUST provide the 'topics_target' list written entirely in {target_language}.
+    Both lists must have the same number of items and be in the same order.
+    Respond only with a valid JSON object, no preamble, no markdown formatting.
     """,
     output_schema=Topics,
     output_key="topics"

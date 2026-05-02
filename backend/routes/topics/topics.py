@@ -25,10 +25,16 @@ router = APIRouter(prefix="/topics", tags=["topics"])
 async def get_topics(language_id: str = None, user_lang: str = "english", target_lang: str = "spanish"):
     """
     Fetch topics from DB or generate them using the AI agent.
+    Topics are cached per (language_id, user_lang, target_lang) so switching
+    the native language or target language correctly regenerates them.
     """
-    # 1. First, check if topics already exist for this language in your DB
+    # 1. Check if topics already exist for this exact combo
     if language_id:
-        cursor = topics_collection.find({"language_id": language_id})
+        cursor = topics_collection.find({
+            "language_id": language_id,
+            "user_lang": user_lang,
+            "target_lang": target_lang,
+        })
         existing_docs = await cursor.to_list(length=100)
         if existing_docs:
             formatted_topics = []
@@ -67,16 +73,17 @@ async def get_topics(language_id: str = None, user_lang: str = "english", target
             text = event.content.parts[0].text
             topics_data = Topics.model_validate_json(text)
             
-            # 3. Save to MongoDB with the language_id so it's found next time
+            # 3. Save to MongoDB including the lang keys for correct cache lookup
             topic_doc = {
                 "language_id": language_id,
+                "user_lang": user_lang,
+                "target_lang": target_lang,
                 "topics_base": topics_data.topics_base,
                 "topics_target": topics_data.topics_target,
                 "created_at": datetime.utcnow()
             }
             inserted = await topics_collection.insert_one(topic_doc)
             
-            # Convert to list of objects for frontend consistency
             formatted_topics = []
             for i in range(len(topics_data.topics_base)):
                 formatted_topics.append({
@@ -124,7 +131,7 @@ async def get_topic(topic_id: str):
 async def create_topic(topic: TopicModel):
     new_topic = await topics_collection.insert_one(topic.model_dump())
     return {"id": str(new_topic.inserted_id)}
-#getByLanguage: (languageId) => api.get(`/topics?language_id=${languageId}`)
+
 @router.get("/language/{language_id}")
 async def get_topics_by_language(language_id: str):
     cursor = topics_collection.find({"language_id": language_id})

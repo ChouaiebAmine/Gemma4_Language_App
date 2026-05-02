@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import { evaluateAPI } from '../services/apiService';
+import * as Speech from 'expo-speech';
 
 export default function LearnScreen({ navigation, route }) {
   const { activity } = route.params || {};
@@ -22,6 +23,57 @@ export default function LearnScreen({ navigation, route }) {
   const [feedback, setFeedback] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+ // Chouaieb: I will add it to mongo after testing
+  // Derive the target language from the activity for TTS
+const LANGUAGE_CODES = {
+  'japanese': 'ja-JP',
+  'arabic': 'ar-SA',
+  'german': 'de-DE',
+  'italian': 'it-IT',
+  'french': 'fr-FR',
+  'spanish': 'es-ES'
+};
+
+// Update the targetLanguage derivation inside LearnScreen
+const targetLanguage = useMemo(() => {
+  const lang = activity?.target_language?.toLowerCase() || 'fr';
+  return LANGUAGE_CODES[lang] || lang; 
+}, [activity]);
+  
+
+ const speakText = useCallback((text) => {
+  if (!text) return;
+  Speech.stop();
+  setIsSpeaking(true);
+  
+  Speech.speak(text, {
+    language: targetLanguage, // Now uses 'ja-JP', 'ar-SA', etc.
+    pitch: 1.0,
+    rate: 0.9, // Slightly slower for learning purposes
+    onDone: () => setIsSpeaking(false),
+    onError: (error) => {
+      console.error("TTS Error:", error);
+      setIsSpeaking(false);
+    },
+  });
+}, [targetLanguage]);
+
+  // Auto-play TTS when question changes for listening activities
+  useEffect(() => {
+    if (!activity) return;
+    const q = questions[currentQuestion];
+    if (!q) return;
+    if (q.type === 'listening_easy') {
+      speakText(q.word);
+    } else if (q.type === 'listening_medium') {
+      speakText(q.target_sentence);
+    } else if (q.type === 'listening_hard' && activity?.content?.dialogue) {
+      const lines = activity.content.dialogue.map(d => d.line).join('. ');
+      speakText(lines);
+    }
+    return () => Speech.stop();
+  }, [currentQuestion, activity]);
 
   if (!activity) {
     return (
@@ -123,6 +175,22 @@ export default function LearnScreen({ navigation, route }) {
 
   const questions = getQuestions();
 
+  // Pre-shuffle options once per question so they don't re-randomize on every render
+  const shuffledOptions = useMemo(() => {
+    return questions.map((q) => {
+      if (q.type === 'reading_easy') {
+        return [...([q.translation, ...q.distractors])].sort(() => Math.random() - 0.5);
+      }
+      if (q.type === 'reading_medium') {
+        return [...([q.missing_word, ...q.distractors])].sort(() => Math.random() - 0.5);
+      }
+      if (q.type === 'listening_easy') {
+        return [...([q.word, ...q.similar])].sort(() => Math.random() - 0.5);
+      }
+      return [];
+    });
+  }, [activity]); // only recompute when the activity itself changes
+
   const handleAnswerChange = (text) => {
     setAnswers({ ...answers, [currentQuestion]: text });
   };
@@ -154,34 +222,53 @@ export default function LearnScreen({ navigation, route }) {
       let response;
 
       // Call appropriate evaluation endpoint based on activity type and difficulty
+      // Pad answers so the current question's answer lands at the right task index.
+      const paddedAnswers = questions.map((_, i) =>
+        i === currentQuestion ? answers[currentQuestion] : ''
+      );
+
       if (activity.type === 'listening') {
         if (activity.difficulty === 0) {
-          response = await evaluateAPI.evaluateListeningEasy(
+          const raw = await evaluateAPI.evaluateListeningEasy(
             activity._id || activity.id,
-            [answers[currentQuestion]],
+            paddedAnswers,
             userId
           );
+          response = {
+            ...raw,
+            results: raw.results ? [raw.results[currentQuestion]] : raw.results,
+          };
         } else if (activity.difficulty === 1) {
+          // Medium listening is a single sentence — no padding needed
           response = await evaluateAPI.evaluateListeningMedium(
             activity._id || activity.id,
             answers[currentQuestion],
             userId
           );
         } else {
-          response = await evaluateAPI.evaluateListeningHard(
+          const raw = await evaluateAPI.evaluateListeningHard(
             activity._id || activity.id,
-            [answers[currentQuestion]],
+            paddedAnswers,
             userId
           );
+          response = {
+            ...raw,
+            results: raw.results ? [raw.results[currentQuestion]] : raw.results,
+          };
         }
       } else if (activity.type === 'writing') {
         if (activity.difficulty === 0) {
-          response = await evaluateAPI.evaluateWritingEasy(
+          const raw = await evaluateAPI.evaluateWritingEasy(
             activity._id || activity.id,
-            [answers[currentQuestion]],
+            paddedAnswers,
             userId
           );
+          response = {
+            ...raw,
+            results: raw.results ? [raw.results[currentQuestion]] : raw.results,
+          };
         } else {
+          // Medium writing is a single essay — no padding needed
           response = await evaluateAPI.evaluateWritingMedium(
             activity._id || activity.id,
             answers[currentQuestion],
@@ -189,24 +276,42 @@ export default function LearnScreen({ navigation, route }) {
           );
         }
       } else if (activity.type === 'reading') {
+        // Pad the answers array so the current answer lands at the correct
+        // task index when the backend does zip(tasks, answers).
+        const paddedAnswers = questions.map((_, i) =>
+          i === currentQuestion ? answers[currentQuestion] : ''
+        );
         if (activity.difficulty === 0) {
-          response = await evaluateAPI.evaluateReadingEasy(
+          const raw = await evaluateAPI.evaluateReadingEasy(
             activity._id || activity.id,
-            [answers[currentQuestion]],
+            paddedAnswers,
             userId
           );
+          // Show only the result for the current question
+          response = {
+            ...raw,
+            results: raw.results ? [raw.results[currentQuestion]] : raw.results,
+          };
         } else if (activity.difficulty === 1) {
-          response = await evaluateAPI.evaluateReadingMedium(
+          const raw = await evaluateAPI.evaluateReadingMedium(
             activity._id || activity.id,
-            [answers[currentQuestion]],
+            paddedAnswers,
             userId
           );
+          response = {
+            ...raw,
+            results: raw.results ? [raw.results[currentQuestion]] : raw.results,
+          };
         } else {
-          response = await evaluateAPI.evaluateReadingHard(
+          const raw = await evaluateAPI.evaluateReadingHard(
             activity._id || activity.id,
-            [answers[currentQuestion]],
+            paddedAnswers,
             userId
           );
+          response = {
+            ...raw,
+            results: raw.results ? [raw.results[currentQuestion]] : raw.results,
+          };
         }
       }
 
@@ -252,10 +357,13 @@ export default function LearnScreen({ navigation, route }) {
           {/* Listening Easy: Word Selection */}
           {question.type === 'listening_easy' && (
             <>
-              <Text style={styles.questionText}>Select the correct word:</Text>
-              <Text style={styles.word}>{question.word}</Text>
+              <Text style={styles.questionText}>Listen and select the correct word:</Text>
+              <TouchableOpacity style={styles.ttsButton} onPress={() => speakText(question.word)}>
+                <Ionicons name={isSpeaking ? 'volume-high' : 'play-circle'} size={56} color="#FF6B6B" />
+                <Text style={styles.ttsLabel}>{isSpeaking ? 'Playing…' : 'Tap to listen'}</Text>
+              </TouchableOpacity>
               <View style={styles.optionsContainer}>
-                {[question.word, ...question.similar].map((option, idx) => (
+                {shuffledOptions[currentQuestion].map((option, idx) => (
                   <TouchableOpacity
                     key={idx}
                     style={[
@@ -274,8 +382,11 @@ export default function LearnScreen({ navigation, route }) {
           {/* Listening Medium: Transcription */}
           {question.type === 'listening_medium' && (
             <>
-              <Text style={styles.questionText}>Transcribe what you hear:</Text>
-              <Text style={styles.hintText}>{question.sentence}</Text>
+              <Text style={styles.questionText}>Listen and transcribe what you hear:</Text>
+              <TouchableOpacity style={styles.ttsButton} onPress={() => speakText(question.target_sentence)}>
+                <Ionicons name={isSpeaking ? 'volume-high' : 'play-circle'} size={56} color="#FF6B6B" />
+                <Text style={styles.ttsLabel}>{isSpeaking ? 'Playing…' : 'Tap to listen'}</Text>
+              </TouchableOpacity>
               <TextInput
                 style={styles.inputBox}
                 placeholder="Type what you hear..."
@@ -291,6 +402,16 @@ export default function LearnScreen({ navigation, route }) {
           {/* Listening Hard: Comprehension */}
           {question.type === 'listening_hard' && (
             <>
+              <TouchableOpacity
+                style={styles.ttsButton}
+                onPress={() => {
+                  const lines = activity?.content?.dialogue?.map(d => d.line).join('. ') || '';
+                  speakText(lines);
+                }}
+              >
+                <Ionicons name={isSpeaking ? 'volume-high' : 'play-circle'} size={56} color="#FF6B6B" />
+                <Text style={styles.ttsLabel}>{isSpeaking ? 'Playing…' : 'Tap to hear dialogue'}</Text>
+              </TouchableOpacity>
               <Text style={styles.questionText}>{question.question}</Text>
               <TextInput
                 style={styles.inputBox}
@@ -343,7 +464,7 @@ export default function LearnScreen({ navigation, route }) {
               <Text style={styles.questionText}>What does "{question.word}" mean?</Text>
               <Text style={styles.hintText}>{question.sentence}</Text>
               <View style={styles.optionsContainer}>
-                {[question.translation, ...question.distractors].sort(() => Math.random() - 0.5).map((option, idx) => (
+                {shuffledOptions[currentQuestion].map((option, idx) => (
                   <TouchableOpacity
                     key={idx}
                     style={[
@@ -365,7 +486,7 @@ export default function LearnScreen({ navigation, route }) {
               <Text style={styles.questionText}>{question.sentence}</Text>
               <Text style={styles.hintText}>Missing word: {question.missing_word}</Text>
               <View style={styles.optionsContainer}>
-                {[question.missing_word, ...question.distractors].sort(() => Math.random() - 0.5).map((option, idx) => (
+                {shuffledOptions[currentQuestion].map((option, idx) => (
                   <TouchableOpacity
                     key={idx}
                     style={[
@@ -534,6 +655,24 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 26,
     marginBottom: 16,
+  },
+  ttsButton: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: '#fff8f5',
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
+    width: 160,
+  },
+  ttsLabel: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#FF6B6B',
+    fontWeight: '600',
   },
   word: {
     fontSize: 24,
