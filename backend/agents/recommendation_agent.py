@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from google.genai import types
 from google.adk.models.lite_llm import LiteLlm
 from dotenv import load_dotenv
-from llm import model, temperature
+from llm import model, temperature, top_k, top_p
 import os
 
 load_dotenv()
@@ -16,7 +16,7 @@ class Recommendation(BaseModel):
 
 recommendation_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_p=top_p, top_k=top_k),
     name="recommendation_agent",
     description="Recommends the single best next learning step based on a user's past evaluation history",
     instruction="""You are a language learning coach analyzing a student's recent activity evaluations.

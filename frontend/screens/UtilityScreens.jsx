@@ -77,7 +77,7 @@ export function AnalyticsScreen() {
         <StatBox icon="⭐" label="Points" value={stats?.points || 0} />
         <StatBox icon="🔥" label="Streak" value={stats?.streak || 0} />
         <StatBox icon="⏱️" label="Hours" value={stats?.learning_time || 0} />
-      </StatContainer>
+      </View>
 
       {/* Weekly Chart */}
       <View style={styles.chartSection}>

@@ -2,7 +2,7 @@ from google.adk.agents.llm_agent import Agent
 from pydantic import BaseModel, Field
 from google.genai import types
 from dotenv import load_dotenv
-from llm import model, temperature
+from llm import model, temperature, top_k, top_p    
 
 load_dotenv()
 
@@ -24,7 +24,7 @@ class EasyWritingEval(BaseModel):
 
 easy_writing_eval_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=0.2),
+    generate_content_config=types.GenerateContentConfig(temperature=0.2, top_p=top_p, top_k=top_k),
     name="easy_writing_eval_agent",
     description="Evaluates fill-in-the-blank answers for an easy writing activity",
     instruction="""You are evaluating a fill-in-the-blank writing exercise.

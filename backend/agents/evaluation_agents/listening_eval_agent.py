@@ -4,7 +4,8 @@ from google.genai import types
 from google.adk.models.lite_llm import LiteLlm
 from dotenv import load_dotenv
 import os
-from llm import model, temperature
+from llm import model, temperature, top_k, top_p
+
 
 load_dotenv()
 
@@ -25,7 +26,7 @@ class MediumListeningEval(BaseModel):
 
 medium_listening_eval_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_p=top_p, top_k=top_k),
     name='easy_listening_evaluation_agent',
     description='An agent useful for evaluating a listening activity (dictation) for a language learning app',
     instruction="""Assess the user's listening performance. Compare the user's input {user_input} with the reference and give a score from 0 to 10, and feedback for the user in the following language: {user_language}.
