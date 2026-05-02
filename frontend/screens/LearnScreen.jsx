@@ -11,10 +11,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { useUser } from '../context/UserContext';
 import { evaluateAPI } from '../services/apiService';
 
 export default function LearnScreen({ navigation, route }) {
   const { activity } = route.params || {};
+  const { user } = useUser();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [feedback, setFeedback] = useState(null);
@@ -29,14 +31,97 @@ export default function LearnScreen({ navigation, route }) {
     );
   }
 
-  const questions = activity.questions || [
-    {
-      id: 1,
-      question: activity.title,
-      type: activity.type || 'writing',
-      hint: 'Try to answer based on what you learned',
-    },
-  ];
+  // Parse activity content based on type and difficulty
+  const getQuestions = () => {
+    const content = activity.content || {};
+    const type = activity.type || 'writing';
+    const difficulty = activity.difficulty || 0;
+
+    switch (type) {
+      case 'listening':
+        if (difficulty === 0) {
+          // Easy listening: word selection
+          return (content.words || []).map((word, idx) => ({
+            id: idx,
+            type: 'listening_easy',
+            word: word.word,
+            similar: word.similar_sounding || [],
+          }));
+        } else if (difficulty === 1) {
+          // Medium listening: transcription
+          return [{
+            id: 0,
+            type: 'listening_medium',
+            sentence: content.sentence,
+            target_sentence: content.target_sentence,
+          }];
+        } else {
+          // Hard listening: comprehension
+          return (content.questions || []).map((q, idx) => ({
+            id: idx,
+            type: 'listening_hard',
+            question: q,
+          }));
+        }
+
+      case 'writing':
+        if (difficulty === 0) {
+          // Easy writing: fill in blanks
+          return (content.tasks || []).map((task, idx) => ({
+            id: idx,
+            type: 'writing_easy',
+            sentence: task.sentence,
+            missing_word: task.missing_word,
+          }));
+        } else {
+          // Medium writing: essay
+          return [{
+            id: 0,
+            type: 'writing_medium',
+            essay_topic: content.essay_topic,
+          }];
+        }
+
+      case 'reading':
+        if (difficulty === 0) {
+          // Easy reading: word matching
+          return (content.tasks || []).map((task, idx) => ({
+            id: idx,
+            type: 'reading_easy',
+            word: task.word,
+            sentence: task.sentence,
+            translation: task.translation,
+            distractors: task.distractors || [],
+          }));
+        } else if (difficulty === 1) {
+          // Medium reading: fill blanks
+          return (content.tasks || []).map((task, idx) => ({
+            id: idx,
+            type: 'reading_medium',
+            sentence: task.sentence,
+            missing_word: task.missing_word,
+            distractors: task.distractors || [],
+          }));
+        } else {
+          // Hard reading: comprehension
+          return (content.questions || []).map((q, idx) => ({
+            id: idx,
+            type: 'reading_hard',
+            question: q,
+            paragraph: content.paragraph,
+          }));
+        }
+
+      default:
+        return [{
+          id: 0,
+          type: 'writing',
+          question: activity.title || 'Answer the question',
+        }];
+    }
+  };
+
+  const questions = getQuestions();
 
   const handleAnswerChange = (text) => {
     setAnswers({ ...answers, [currentQuestion]: text });
@@ -64,13 +149,71 @@ export default function LearnScreen({ navigation, route }) {
 
     setIsSubmitting(true);
     try {
-      const response = await evaluateAPI.evaluateActivity(
-        activity.id || activity._id,
-        answers[currentQuestion]
-      );
+      const question = questions[currentQuestion];
+      const userId = user?.id || 'user';
+      let response;
+
+      // Call appropriate evaluation endpoint based on activity type and difficulty
+      if (activity.type === 'listening') {
+        if (activity.difficulty === 0) {
+          response = await evaluateAPI.evaluateListeningEasy(
+            activity._id || activity.id,
+            [answers[currentQuestion]],
+            userId
+          );
+        } else if (activity.difficulty === 1) {
+          response = await evaluateAPI.evaluateListeningMedium(
+            activity._id || activity.id,
+            answers[currentQuestion],
+            userId
+          );
+        } else {
+          response = await evaluateAPI.evaluateListeningHard(
+            activity._id || activity.id,
+            [answers[currentQuestion]],
+            userId
+          );
+        }
+      } else if (activity.type === 'writing') {
+        if (activity.difficulty === 0) {
+          response = await evaluateAPI.evaluateWritingEasy(
+            activity._id || activity.id,
+            [answers[currentQuestion]],
+            userId
+          );
+        } else {
+          response = await evaluateAPI.evaluateWritingMedium(
+            activity._id || activity.id,
+            answers[currentQuestion],
+            userId
+          );
+        }
+      } else if (activity.type === 'reading') {
+        if (activity.difficulty === 0) {
+          response = await evaluateAPI.evaluateReadingEasy(
+            activity._id || activity.id,
+            [answers[currentQuestion]],
+            userId
+          );
+        } else if (activity.difficulty === 1) {
+          response = await evaluateAPI.evaluateReadingMedium(
+            activity._id || activity.id,
+            [answers[currentQuestion]],
+            userId
+          );
+        } else {
+          response = await evaluateAPI.evaluateReadingHard(
+            activity._id || activity.id,
+            [answers[currentQuestion]],
+            userId
+          );
+        }
+      }
+
       setFeedback(response);
     } catch (error) {
-      Alert.alert('Error', 'Failed to evaluate answer');
+      Alert.alert('Error', 'Failed to evaluate answer: ' + error.message);
+      console.error('Evaluation error:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -91,7 +234,7 @@ export default function LearnScreen({ navigation, route }) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Learn</Text>
+          <Text style={styles.headerTitle}>{activity.type?.toUpperCase()}</Text>
           <Text style={styles.progress}>
             {currentQuestion + 1}/{questions.length}
           </Text>
@@ -103,43 +246,156 @@ export default function LearnScreen({ navigation, route }) {
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Question Card */}
         <View style={styles.questionCard}>
-          <Text style={styles.questionType}>{question.type.toUpperCase()}</Text>
-          <Text style={styles.questionText}>{question.question}</Text>
+          <Text style={styles.questionType}>{question.type?.toUpperCase()}</Text>
 
-          {question.hint && (
-            <View style={styles.hintBox}>
-              <Ionicons name="bulb" size={16} color="#FF6B6B" />
-              <Text style={styles.hintText}>{question.hint}</Text>
-            </View>
+          {/* Listening Easy: Word Selection */}
+          {question.type === 'listening_easy' && (
+            <>
+              <Text style={styles.questionText}>Select the correct word:</Text>
+              <Text style={styles.word}>{question.word}</Text>
+              <View style={styles.optionsContainer}>
+                {[question.word, ...question.similar].map((option, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.option,
+                      answers[currentQuestion] === option && styles.selectedOption,
+                    ]}
+                    onPress={() => handleAnswerChange(option)}
+                  >
+                    <Text style={styles.optionText}>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
           )}
 
-          {/* Input Area */}
-          {question.type === 'writing' && (
-            <TextInput
-              style={styles.inputBox}
-              placeholder="Type your answer here..."
-              value={answers[currentQuestion] || ''}
-              onChangeText={handleAnswerChange}
-              multiline
-              numberOfLines={4}
-              editable={!isSubmitting}
-            />
+          {/* Listening Medium: Transcription */}
+          {question.type === 'listening_medium' && (
+            <>
+              <Text style={styles.questionText}>Transcribe what you hear:</Text>
+              <Text style={styles.hintText}>{question.sentence}</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="Type what you hear..."
+                value={answers[currentQuestion] || ''}
+                onChangeText={handleAnswerChange}
+                multiline
+                numberOfLines={3}
+                editable={!isSubmitting}
+              />
+            </>
           )}
 
-          {question.type === 'listening' && (
-            <TouchableOpacity style={styles.audioButton}>
-              <Ionicons name="play-circle" size={48} color="#FF6B6B" />
-              <Text style={styles.audioText}>Tap to play audio</Text>
-            </TouchableOpacity>
+          {/* Listening Hard: Comprehension */}
+          {question.type === 'listening_hard' && (
+            <>
+              <Text style={styles.questionText}>{question.question}</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="Type your answer..."
+                value={answers[currentQuestion] || ''}
+                onChangeText={handleAnswerChange}
+                multiline
+                numberOfLines={3}
+                editable={!isSubmitting}
+              />
+            </>
           )}
 
-          {question.type === 'speaking' && (
-            <TouchableOpacity style={styles.micButton}>
-              <Ionicons name="mic-circle" size={48} color="#FF6B6B" />
-              <Text style={styles.micText}>Tap to record</Text>
-            </TouchableOpacity>
+          {/* Writing Easy: Fill Blanks */}
+          {question.type === 'writing_easy' && (
+            <>
+              <Text style={styles.questionText}>{question.sentence}</Text>
+              <Text style={styles.hintText}>Missing word: {question.missing_word}</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="Fill in the blank..."
+                value={answers[currentQuestion] || ''}
+                onChangeText={handleAnswerChange}
+                editable={!isSubmitting}
+              />
+            </>
+          )}
+
+          {/* Writing Medium: Essay */}
+          {question.type === 'writing_medium' && (
+            <>
+              <Text style={styles.questionText}>Write an essay about:</Text>
+              <Text style={styles.essayTopic}>{question.essay_topic}</Text>
+              <TextInput
+                style={[styles.inputBox, { minHeight: 150 }]}
+                placeholder="Write your essay here..."
+                value={answers[currentQuestion] || ''}
+                onChangeText={handleAnswerChange}
+                multiline
+                numberOfLines={6}
+                editable={!isSubmitting}
+                textAlignVertical="top"
+              />
+            </>
+          )}
+
+          {/* Reading Easy: Word Matching */}
+          {question.type === 'reading_easy' && (
+            <>
+              <Text style={styles.questionText}>What does "{question.word}" mean?</Text>
+              <Text style={styles.hintText}>{question.sentence}</Text>
+              <View style={styles.optionsContainer}>
+                {[question.translation, ...question.distractors].sort(() => Math.random() - 0.5).map((option, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.option,
+                      answers[currentQuestion] === option && styles.selectedOption,
+                    ]}
+                    onPress={() => handleAnswerChange(option)}
+                  >
+                    <Text style={styles.optionText}>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Reading Medium: Fill Blanks */}
+          {question.type === 'reading_medium' && (
+            <>
+              <Text style={styles.questionText}>{question.sentence}</Text>
+              <Text style={styles.hintText}>Missing word: {question.missing_word}</Text>
+              <View style={styles.optionsContainer}>
+                {[question.missing_word, ...question.distractors].sort(() => Math.random() - 0.5).map((option, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.option,
+                      answers[currentQuestion] === option && styles.selectedOption,
+                    ]}
+                    onPress={() => handleAnswerChange(option)}
+                  >
+                    <Text style={styles.optionText}>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Reading Hard: Comprehension */}
+          {question.type === 'reading_hard' && (
+            <>
+              <Text style={styles.paragraph}>{question.paragraph}</Text>
+              <Text style={styles.questionText}>{question.question}</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="Type your answer..."
+                value={answers[currentQuestion] || ''}
+                onChangeText={handleAnswerChange}
+                multiline
+                numberOfLines={3}
+                editable={!isSubmitting}
+              />
+            </>
           )}
 
           {/* Feedback */}
@@ -147,33 +403,25 @@ export default function LearnScreen({ navigation, route }) {
             <View
               style={[
                 styles.feedbackBox,
-                feedback.correct ? styles.correctBox : styles.incorrectBox,
+                feedback.total_score > 0 ? styles.correctBox : styles.incorrectBox,
               ]}
             >
               <Text style={styles.feedbackTitle}>
-                {feedback.correct ? '✅ Correct!' : '❌ Not quite'}
+                {feedback.total_score > 0 ? '✓ Correct!' : '✗ Not quite'}
               </Text>
               <Text style={styles.feedbackText}>{feedback.feedback}</Text>
-              {feedback.correct_answer && (
-                <Text style={styles.correctAnswer}>
-                  Correct answer: {feedback.correct_answer}
-                </Text>
+              {feedback.results && feedback.results.length > 0 && (
+                <View style={styles.resultsContainer}>
+                  {feedback.results.map((result, idx) => (
+                    <Text key={idx} style={styles.resultText}>
+                      {result.correct_word || result.word}: {result.user_answer}
+                    </Text>
+                  ))}
+                </View>
               )}
             </View>
           )}
         </View>
-
-        {/* Examples */}
-        {question.examples && (
-          <View style={styles.examplesBox}>
-            <Text style={styles.examplesTitle}>Examples</Text>
-            {question.examples.map((example, idx) => (
-              <View key={idx} style={styles.exampleItem}>
-                <Text style={styles.exampleText}>{example}</Text>
-              </View>
-            ))}
-          </View>
-        )}
       </ScrollView>
 
       {/* Bottom Actions */}
@@ -287,22 +535,34 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginBottom: 16,
   },
-  hintBox: {
-    backgroundColor: '#fff8f5',
-    borderLeftWidth: 3,
-    borderLeftColor: '#FF6B6B',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  word: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FF6B6B',
     marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    textAlign: 'center',
+  },
+  essayTopic: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF6B6B',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  paragraph: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 22,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
   },
   hintText: {
     fontSize: 13,
     color: '#666',
-    flex: 1,
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
   inputBox: {
     borderWidth: 1,
@@ -315,27 +575,26 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginTop: 12,
   },
-  audioButton: {
-    alignItems: 'center',
-    paddingVertical: 20,
+  optionsContainer: {
     marginTop: 12,
+    gap: 8,
   },
-  audioText: {
-    fontSize: 14,
-    color: '#FF6B6B',
-    marginTop: 8,
-    fontWeight: '600',
-  },
-  micButton: {
+  option: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
-    paddingVertical: 20,
-    marginTop: 12,
   },
-  micText: {
+  selectedOption: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#fff8f5',
+  },
+  optionText: {
     fontSize: 14,
-    color: '#FF6B6B',
-    marginTop: 8,
-    fontWeight: '600',
+    color: '#333',
+    fontWeight: '500',
   },
   feedbackBox: {
     marginTop: 16,
@@ -362,32 +621,16 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
   },
-  correctAnswer: {
+  resultsContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  resultText: {
     fontSize: 12,
     color: '#666',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  examplesBox: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
-  },
-  examplesTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 12,
-  },
-  exampleItem: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  exampleText: {
-    fontSize: 13,
-    color: '#555',
+    marginBottom: 4,
   },
   actions: {
     flexDirection: 'row',

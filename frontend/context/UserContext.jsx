@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { authAPI, analyticsAPI } from '../services/apiService';
 
@@ -6,116 +6,155 @@ const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [userToken, setUserToken] = useState(null);
 
-  // Get user data
-  const getUser = async (userId) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await analyticsAPI.getUserStats(userId);
-      setUser({ 
-      id: userId, 
-      name: response.name, 
-      native_language: response.native_language || 'english', 
-      ...response 
-    });
-    return response;
-    } catch (err) {
-      setError(err.message);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Check if user is already logged in
+  useEffect(() => {
+    const bootstrapAsync = async () => {
+      try {
+        const token = await SecureStore.getItemAsync('userToken');
+        if (token) {
+          setUserToken(token);
+          // You can fetch user data here if needed
+        }
+      } catch (e) {
+        console.error('Failed to restore token', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Update user stats
-  const updateStats = async (userId) => {
+    bootstrapAsync();
+  }, []);
+
+  // Get user stats
+  const getStats = useCallback(async (userId) => {
     try {
       const response = await analyticsAPI.getUserStats(userId);
-      setStats(response);
+      setStats(response.data || response);
       return response;
     } catch (err) {
-      setError(err.message);
+      console.error('Error fetching stats:', err);
       return null;
     }
-  };
+  }, []);
 
-  // Login user
-  const login = async (email, password) => {
+  // Update stats
+  const updateStats = useCallback(async (userId) => {
+    try {
+      const response = await analyticsAPI.getUserStats(userId);
+      setStats(response.data || response);
+      return response;
+    } catch (err) {
+      console.error('Error updating stats:', err);
+      return null;
+    }
+  }, []);
+
+  // Login
+  const login = useCallback(async (email, password) => {
     try {
       setIsLoading(true);
       setError(null);
+      
       const response = await authAPI.login(email, password);
-      await SecureStore.setItemAsync('userToken', response.token);
-      setUser(response.user);
-      return response.user;
+      const userData = response.data || response;
+      
+      if (userData.token) {
+        await SecureStore.setItemAsync('userToken', userData.token);
+        setUserToken(userData.token);
+      }
+      
+      setUser(userData.user || userData);
+      
+      // Fetch user stats
+      if (userData.user?.id || userData.id) {
+        const userId = userData.user?.id || userData.id;
+        await getStats(userId);
+      }
+      
+      return userData;
     } catch (err) {
       setError(err.message);
+      console.error('Login error:', err);
       return null;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getStats]);
 
-  // Register user
-  const register = async (email, password, name) => {
+  // Register
+  const register = useCallback(async (email, password, name) => {
     try {
       setIsLoading(true);
       setError(null);
+      
       const response = await authAPI.register(email, password, name);
-      await SecureStore.setItemAsync('userToken', response.token);
-      setUser(response.user);
-      return response.user;
+      const userData = response.data || response;
+      
+      if (userData.token) {
+        await SecureStore.setItemAsync('userToken', userData.token);
+        setUserToken(userData.token);
+      }
+      
+      setUser(userData.user || userData);
+      
+      return userData;
     } catch (err) {
       setError(err.message);
+      console.error('Registration error:', err);
       return null;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  // Logout user
-  const logout = async () => {
+  // Logout
+  const logout = useCallback(async () => {
     try {
-      setIsLoading(true);
       await authAPI.logout();
       await SecureStore.deleteItemAsync('userToken');
+      setUserToken(null);
       setUser(null);
       setStats(null);
     } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+      console.error('Logout error:', err);
     }
-  };
+  }, []);
 
-  // Check if user is authenticated
-  const checkAuth = async () => {
+  // Check auth status
+  const checkAuth = useCallback(async () => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       return !!token;
     } catch (err) {
+      console.error('Auth check error:', err);
       return false;
     }
-  };
+  }, []);
 
   const value = {
     user,
+    stats,
     isLoading,
     error,
-    stats,
-    getUser,
-    updateStats,
+    userToken,
     login,
     register,
     logout,
     checkAuth,
+    getStats,
+    updateStats,
   };
 
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+  return (
+    <UserContext.Provider value={value}>
+      {children}
+    </UserContext.Provider>
+  );
 };
 
 export const useUser = () => {

@@ -13,6 +13,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 
+
 export default function HomeScreen({ navigation }) {
   const { languages, selectedLanguage, fetchLanguages, selectLanguage, isLoading } =
     useLanguage();
@@ -37,8 +38,9 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.username}>{user?.name || 'Learner'}</Text>
           </View>
           <View style={styles.headerStats}>
-            <StatBadge icon="" value={stats?.streak || 0} label="Streak" />
-            <StatBadge icon="" value={stats?.points || 0} label="Points" />
+            
+            <StatBadge icon= {<Ionicons name="flame" size={20} color="#fff" />} value={stats?.streak || 0} label="Streak" />
+            <StatBadge icon= {<Ionicons name="star" size={20} color="#fff" />} value={stats?.points || 0} label="Points" />
           </View>
         </View>
       </LinearGradient>

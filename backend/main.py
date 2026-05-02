@@ -5,6 +5,7 @@ from routes.evaluate import router as eval_router
 from routes.achievements import router as achievements_router
 from routes.languages import router as languages_router
 from routes.analytics import router as analytics_router
+from routes.recommend import router as recommend_router
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -37,4 +38,4 @@ app.include_router(eval_router)
 app.include_router(achievements_router)
 app.include_router(languages_router)
 app.include_router(analytics_router)
-
+app.include_router(recommend_router)

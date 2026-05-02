@@ -1,27 +1,36 @@
-from fastapi import APIRouter
-from typing import List
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from typing import Optional, List
+from bson import ObjectId
 
-from agents.topic_generator.agent import Topics
-from agents.activities_generator.listening_agent import easy_listening_agent, EasyListening, medium_listening_agent, MediumListening, hard_listening_agent, HardListening
-from agents.activities_generator.writing_agent import easy_writing_agent, EasyWriting, medium_writing_agent, MediumWriting
-
+from agents.activities_generator.listening_agent import (
+    easy_listening_agent, EasyListening,
+    medium_listening_agent, MediumListening,
+    hard_listening_agent, HardListening,
+)
+from agents.activities_generator.writing_agent import (
+    easy_writing_agent, EasyWriting,
+    medium_writing_agent, MediumWriting,
+)
+from agents.activities_generator.reading_agent import (
+    easy_reading_agent, EasyReading,
+    medium_reading_agent, MediumReading,
+    hard_reading_agent, HardReading,
+)
 
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
 from google.genai import types
 
-import json
 from uuid import uuid4
 from database import activities_collection
 from models import ActivityModel
+from datetime import datetime
 
 session_service = InMemorySessionService()
 APP_NAME = "Language Learning App"
-USER_ID = "user"
 
 router = APIRouter(prefix="/activities", tags=["activities"])
-
 
 
 class GenerateActivityBody(BaseModel):
@@ -31,149 +40,228 @@ class GenerateActivityBody(BaseModel):
     target_language: str = Field(default="spanish")
 
 
-@router.post("/listening")
-async def generate_listening_activity(difficulty: int, body: GenerateActivityBody):
+# ─── Shared helpers ──────────────────────────────────────────────────────────
 
-    agent = easy_listening_agent
-    schema = EasyListening
-    
-    match difficulty:
-        case 0:
-            agent = easy_listening_agent
-            schema = EasyListening
-        case 1:
-            agent = medium_listening_agent
-            schema = MediumListening
-        case 2:
-            agent = hard_listening_agent
-            schema = HardListening
-    
-    session = await session_service.create_session(app_name=APP_NAME, user_id=body.user_id, session_id=str(uuid4()),
+async def run_agent(agent, body: GenerateActivityBody) -> str:
+    session = await session_service.create_session(
+        app_name=APP_NAME,
+        user_id=body.user_id,
+        session_id=str(uuid4()),
         state={
-            "topic": body.topic,
-            "user_language": body.user_language,
+            "topic":           body.topic,
+            "user_language":   body.user_language,
             "target_language": body.target_language,
-    })
-
-    runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service, auto_create_session=True)
-
-    content = types.Content(
-        role="user",
-        parts=[types.Part(text="start")]
+        },
     )
+    runner = Runner(
+        app_name=APP_NAME,
+        agent=agent,
+        session_service=session_service,
+        auto_create_session=True,
+    )
+    content = types.Content(role="user", parts=[types.Part(text="start")])
 
-    async for event in runner.run_async(user_id=body.user_id, session_id=session.id, new_message=content):
+    async for event in runner.run_async(
+        user_id=body.user_id,
+        session_id=session.id,
+        new_message=content,
+    ):
         if event.is_final_response():
-            text = event.content.parts[0].text
-            output = schema.model_validate_json(text)
-            
-            # Prepare response and save to MongoDB
-            result = output.model_dump()
-            
-            # Add fields expected by frontend
-            result["title"] = f"{body.topic} (Listening)"
-            result["type"] = "listening"
-            
-            # Save to MongoDB
-            activity_doc = ActivityModel(
-                type="listening",
-                level="A1",
-                difficulty=difficulty,
-                content=result
-            ).model_dump()
-            activity_doc["topic_id"] = body.topic # Using topic name as ID for now or from body
-            activity_doc["title"] = result["title"]
-            
-            inserted = await activities_collection.insert_one(activity_doc)
-            result["id"] = str(inserted.inserted_id)
-            
-            return result
-    return {}
+            return event.content.parts[0].text
+
+    raise HTTPException(status_code=500, detail="Agent produced no final response")
 
 
+async def save_activity(activity_type: str, difficulty: int, body: GenerateActivityBody, content: dict) -> dict:
+    """Save activity to MongoDB and return the full document with _id as string."""
+    doc = ActivityModel(
+        type=activity_type,
+        level="A1",
+        difficulty=difficulty,
+        content=content,
+        user_language=body.user_language,
+        target_language=body.target_language,
+        topic=body.topic,
+    ).model_dump()
 
+    result = await activities_collection.insert_one(doc)
+    doc["_id"] = str(result.inserted_id)
+    return doc
+
+
+# ─── CRUD Endpoints 
 
 @router.get("/")
-async def get_activities(topic_id: str = None):
+async def get_activities(topic_id: Optional[str] = None, user_id: Optional[str] = None):
+    """Get all activities or filter by topic_id."""
     query = {}
     if topic_id:
-        query["topic_id"] = topic_id
+        query["topic"] = topic_id
+    if user_id:
+        query["user_id"] = user_id
+    
     cursor = activities_collection.find(query)
     activities = await cursor.to_list(length=100)
+    
+    # Convert ObjectId to string
     for activity in activities:
-        activity["id"] = str(activity.pop("_id"))
-        # Flatten content if needed for frontend
-        if "content" in activity:
-            for key, value in activity["content"].items():
-                if key not in activity:
-                    activity[key] = value
+        activity["_id"] = str(activity["_id"])
+    
     return activities
 
-@router.post("/generate/{topic_id}")
-async def generate_activities_for_topic(topic_id: str):
-    # This is a helper to trigger generation from the frontend
-    # For now, generate one listening and one writing activity
-    body = GenerateActivityBody(topic=topic_id)
-    l_activity = await generate_listening_activity(difficulty=1, body=body)
-    w_activity = await generate_writing_activity(difficulty=1, body=body)
-    return [l_activity, w_activity]
 
-@router.post("/writing")
-async def generate_writing_activity(difficulty: int, body: GenerateActivityBody):
-
-    agent = easy_writing_agent
-    schema = EasyWriting
+@router.get("/{activity_id}")
+async def get_activity(activity_id: str):
+    """Get a single activity by ID."""
+    try:
+        oid = ObjectId(activity_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid activity_id: {activity_id}")
     
+    activity = await activities_collection.find_one({"_id": oid})
+    if not activity:
+        raise HTTPException(status_code=404, detail=f"Activity {activity_id} not found")
+    
+    activity["_id"] = str(activity["_id"])
+    return activity
+
+
+@router.post("/")
+async def create_activity(activity_data: GenerateActivityBody):
+    """Create a new activity manually."""
+    doc = ActivityModel(
+        type="custom",
+        level="A1",
+        difficulty=0,
+        content={},
+        user_language=activity_data.user_language,
+        target_language=activity_data.target_language,
+        topic=activity_data.topic,
+    ).model_dump()
+    
+    result = await activities_collection.insert_one(doc)
+    doc["_id"] = str(result.inserted_id)
+    return doc
+
+
+@router.put("/{activity_id}")
+async def update_activity(activity_id: str, activity_data: dict):
+    """Update an activity."""
+    try:
+        oid = ObjectId(activity_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid activity_id: {activity_id}")
+    
+    result = await activities_collection.update_one(
+        {"_id": oid},
+        {"$set": activity_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail=f"Activity {activity_id} not found")
+    
+    activity = await activities_collection.find_one({"_id": oid})
+    activity["_id"] = str(activity["_id"])
+    return activity
+
+
+@router.delete("/{activity_id}")
+async def delete_activity(activity_id: str):
+    """Delete an activity."""
+    try:
+        oid = ObjectId(activity_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid activity_id: {activity_id}")
+    
+    result = await activities_collection.delete_one({"_id": oid})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail=f"Activity {activity_id} not found")
+    
+    return {"message": "Activity deleted successfully"}
+
+
+# ─── Activity Generation Endpoint ──────────────────────────────────────────────
+
+@router.post("/generate/{topic_id}")
+async def generate_activities_for_topic(topic_id: str, body: GenerateActivityBody):
+    """
+    Generate multiple activities (one of each type: listening, writing, reading)
+    for a given topic. This is the main endpoint the frontend calls.
+    """
+    generated_activities = []
+    
+    # Generate one activity of each type at difficulty 0 (easy)
+    activity_configs = [
+        ("listening", 0, easy_listening_agent, EasyListening),
+        ("writing", 0, easy_writing_agent, EasyWriting),
+        ("reading", 0, easy_reading_agent, EasyReading),
+    ]
+    
+    for activity_type, difficulty, agent, schema in activity_configs:
+        try:
+            text = await run_agent(agent, body)
+            output = schema.model_validate_json(text)
+            activity = await save_activity(activity_type, difficulty, body, output.model_dump())
+            generated_activities.append(activity)
+        except Exception as e:
+            print(f"Error generating {activity_type} activity: {str(e)}")
+            continue
+    
+    return {
+        "topic_id": topic_id,
+        "activities": generated_activities,
+        "count": len(generated_activities)
+    }
+
+
+# ─── Listening 
+async def generate_listening_activity(difficulty: int, body: GenerateActivityBody):
     match difficulty:
         case 0:
-            agent = easy_writing_agent
-            schema = EasyWriting
+            agent, schema = easy_listening_agent, EasyListening
         case 1:
-            agent = medium_writing_agent
-            schema = MediumWriting
+            agent, schema = medium_listening_agent, MediumListening
         case 2:
-            # Note: hard_writing_agent seems missing, using hard_listening_agent as placeholder
-            agent = hard_listening_agent
-            schema = HardListening
-    
-    session = await session_service.create_session(app_name=APP_NAME, user_id=body.user_id, session_id=str(uuid4()),
-        state={
-            "topic": body.topic,
-            "user_language": body.user_language,
-            "target_language": body.target_language,
-    })
+            agent, schema = hard_listening_agent, HardListening
+        case _:
+            raise HTTPException(status_code=400, detail=f"Invalid difficulty: {difficulty}")
 
-    runner = Runner(app_name=APP_NAME, agent=agent, session_service=session_service, auto_create_session=True)
+    text = await run_agent(agent, body)
+    output = schema.model_validate_json(text)
+    return await save_activity("listening", difficulty, body, output.model_dump())
 
-    content = types.Content(
-        role="user",
-        parts=[types.Part(text="start")]
-    )
 
-    async for event in runner.run_async(user_id=body.user_id, session_id=session.id, new_message=content):
-        if event.is_final_response():
-            text = event.content.parts[0].text
-            output = schema.model_validate_json(text)
-            
-            # Prepare response and save to MongoDB
-            result = output.model_dump()
-            
-            # Add fields expected by frontend
-            result["title"] = f"{body.topic} (Writing)"
-            result["type"] = "writing"
-            
-            # save to Mongo
-            activity_doc = ActivityModel(
-                type="writing",
-                level="A1",
-                difficulty=difficulty,
-                content=result
-            ).model_dump()
-            activity_doc["topic_id"] = body.topic
-            activity_doc["title"] = result["title"]
-            
-            inserted = await activities_collection.insert_one(activity_doc)
-            result["id"] = str(inserted.inserted_id)
-            
-            return result
-    return {}
+# ─── Writing 
+@router.post("/writing")
+async def generate_writing_activity(difficulty: int, body: GenerateActivityBody):
+    match difficulty:
+        case 0:
+            agent, schema = easy_writing_agent, EasyWriting
+        case 1:
+            agent, schema = medium_writing_agent, MediumWriting
+        case _:
+            raise HTTPException(status_code=400, detail=f"Invalid difficulty: {difficulty}")
+
+    text = await run_agent(agent, body)
+    output = schema.model_validate_json(text)
+    return await save_activity("writing", difficulty, body, output.model_dump())
+
+
+# ─── Reading 
+
+@router.post("/reading")
+async def generate_reading_activity(difficulty: int, body: GenerateActivityBody):
+    match difficulty:
+        case 0:
+            agent, schema = easy_reading_agent, EasyReading
+        case 1:
+            agent, schema = medium_reading_agent, MediumReading
+        case 2:
+            agent, schema = hard_reading_agent, HardReading
+        case _:
+            raise HTTPException(status_code=400, detail=f"Invalid difficulty: {difficulty}")
+
+    text = await run_agent(agent, body)
+    output = schema.model_validate_json(text)
+    return await save_activity("reading", difficulty, body, output.model_dump())

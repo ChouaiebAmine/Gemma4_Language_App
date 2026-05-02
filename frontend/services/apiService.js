@@ -35,21 +35,18 @@ api.interceptors.response.use(
 );
 
 
-// Inside apiService.js[cite: 6]
+// ─── Languages API ───────────────────────────────────────────────────────────
 export const languagesAPI = {
-  // Matches @router.get("/all")
   getAll: () => api.get('/languages/all'),
-
-  enroll: (userId, data) => api.post(`/languages/enroll/${userId}`, data),
-  
-  create: (data) => api.post('/languages', data),
-  
   getOne: (languageId) => api.get(`/languages/${languageId}`),
+  create: (data) => api.post('/languages', data),
   update: (languageId, data) => api.put(`/languages/${languageId}`, data),
   delete: (languageId) => api.delete(`/languages/${languageId}`),
+  enroll: (languageId, userId, data) => api.post(`/languages/${languageId}/enroll/${userId}`, data),
+  getEnrolled: (userId) => api.get(`/languages/enrolled/${userId}`),
 };
 
-//  Topics API 
+// ─── Topics API ──────────────────────────────────────────────────────────────
 export const topicsAPI = {
   getAll: (params) => api.get('/topics', { params }),
   getByLanguage: (languageId, userLang, targetLang) => 
@@ -66,7 +63,7 @@ export const topicsAPI = {
   delete: (topicId) => api.delete(`/topics/${topicId}`),
 };
 
-//  Activities API 
+// ─── Activities API ──────────────────────────────────────────────────────────
 export const activitiesAPI = {
   getAll: (params) => api.get('/activities', { params }),
   getByTopic: (topicId) => api.get('/activities', { params: { topic_id: topicId } }),
@@ -74,18 +71,73 @@ export const activitiesAPI = {
   create: (data) => api.post('/activities', data),
   update: (activityId, data) => api.put(`/activities/${activityId}`, data),
   delete: (activityId) => api.delete(`/activities/${activityId}`),
-  generateActivities: (topicId) => api.post(`/activities/generate/${encodeURIComponent(topicId)}`),
+  generateActivities: (topicId, body) => 
+    api.post(`/activities/generate/${encodeURIComponent(topicId)}`, body || {}),
+  generateListening: (difficulty, body) => 
+    api.post(`/activities/listening?difficulty=${difficulty}`, body),
+  generateWriting: (difficulty, body) => 
+    api.post(`/activities/writing?difficulty=${difficulty}`, body),
+  generateReading: (difficulty, body) => 
+    api.post(`/activities/reading?difficulty=${difficulty}`, body),
 };
 
-//  Evaluate API 
+// ─── Evaluate API ────────────────────────────────────────────────────────────
 export const evaluateAPI = {
+  evaluateListeningEasy: (activityId, selectedWords, userId) =>
+    api.post(`/evaluate/listening/easy`, { 
+      activity_id: activityId, 
+      selected_words: selectedWords,
+      user_id: userId 
+    }),
+  evaluateListeningMedium: (activityId, transcription, userId) =>
+    api.post(`/evaluate/listening/medium`, { 
+      activity_id: activityId, 
+      transcription,
+      user_id: userId 
+    }),
+  evaluateListeningHard: (activityId, answers, userId) =>
+    api.post(`/evaluate/listening/hard`, { 
+      activity_id: activityId, 
+      answers,
+      user_id: userId 
+    }),
+  evaluateWritingEasy: (activityId, answers, userId) =>
+    api.post(`/evaluate/writing/easy`, { 
+      activity_id: activityId, 
+      answers,
+      user_id: userId 
+    }),
+  evaluateWritingMedium: (activityId, essay, userId) =>
+    api.post(`/evaluate/writing/medium`, { 
+      activity_id: activityId, 
+      essay,
+      user_id: userId 
+    }),
+  evaluateReadingEasy: (activityId, answers, userId) =>
+    api.post(`/evaluate/reading/easy`, { 
+      activity_id: activityId, 
+      answers,
+      user_id: userId 
+    }),
+  evaluateReadingMedium: (activityId, answers, userId) =>
+    api.post(`/evaluate/reading/medium`, { 
+      activity_id: activityId, 
+      answers,
+      user_id: userId 
+    }),
+  evaluateReadingHard: (activityId, answers, userId) =>
+    api.post(`/evaluate/reading/hard`, { 
+      activity_id: activityId, 
+      answers,
+      user_id: userId 
+    }),
   evaluateActivity: (activityId, answer) =>
     api.post(`/evaluate/${activityId}`, { answer }),
   getEvaluation: (evaluationId) => api.get(`/evaluate/${evaluationId}`),
   getUserEvaluations: (userId) => api.get(`/evaluate/user/${userId}`),
 };
 
-//  Achievements API 
+// ─── Achievements API ────────────────────────────────────────────────────────
 export const achievementsAPI = {
   getAll: () => api.get('/achievements'),
   getUserAchievements: (userId) => api.get(`/achievements/user/${userId}`),
@@ -93,15 +145,16 @@ export const achievementsAPI = {
     api.post(`/achievements/${achievementId}/unlock`, { userId }),
 };
 
-//  Analytics API 
+// ─── Analytics API ───────────────────────────────────────────────────────────
 export const analyticsAPI = {
   getUserStats: (userId) => api.get(`/analytics/user/${userId}`),
   getProgress: (userId) => api.get(`/analytics/progress/${userId}`),
   getStreak: (userId) => api.get(`/analytics/streak/${userId}`),
   getLearningPath: (userId) => api.get(`/analytics/learning-path/${userId}`),
+  getPerformance: (userId) => api.get(`/analytics/${userId}`),
 };
 
-//  Auth API (if needed)
+// ─── Auth API ────────────────────────────────────────────────────────────────
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   register: (email, password, name) =>
@@ -110,5 +163,5 @@ export const authAPI = {
   refreshToken: () => api.post('/auth/refresh'),
 };
 
-//  Export API client 
+// ─── Export API client ───────────────────────────────────────────────────────
 export default api;

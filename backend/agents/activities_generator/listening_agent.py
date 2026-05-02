@@ -4,10 +4,10 @@ from google.genai import types
 from google.adk.models.lite_llm import LiteLlm
 from dotenv import load_dotenv
 import os
+from llm import model, temperature
 
 load_dotenv()
 
-model = "gemini-3.1-flash-lite-preview"
 
 class WordEntry(BaseModel):
     word: str
@@ -18,9 +18,8 @@ class EasyListening(BaseModel):
 
 
 easy_listening_agent = Agent(
-    # model='gemma-4-31b-it',
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=1.0),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature),
     name='easy_listening_agent',
     description='An agent useful for generating a listening activity for a language learning app',
     instruction="""Generate 5 words related to this topic: {topic}.
@@ -40,7 +39,7 @@ class MediumListening(BaseModel):
 
 medium_listening_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=1.0),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature),
     name='medium_listening_agent',
     description='An agent useful for generating a listening activity for a language learning app',
     instruction="""Generate a sentence related to this topic: {topic}.
@@ -61,7 +60,7 @@ class HardListening(BaseModel):
 
 hard_listening_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=1.0),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature),
     name='hard_listening_agent',
     description='An agent useful for generating a listening activity for a language learning app',
     instruction="""Generate a short dialogue related to this topic: {topic}.

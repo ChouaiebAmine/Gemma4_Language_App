@@ -91,6 +91,9 @@ function TopicCard({ topic, colors, onPress }) {
           </Text>
           <View style={styles.topicInfo}>
             <Text style={styles.topicName}>{topic.name}</Text>
+            {topic.target_name && (
+              <Text style={styles.topicTargetName}>{topic.target_name}</Text>
+            )}
             <Text style={styles.topicDesc}>{topic.description || 'Click to learn'}</Text>
             {topic.lesson_count && (
               <View style={styles.metaInfo}>
@@ -167,6 +170,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+  },
+  topicTargetName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    opacity: 0.9,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   topicDesc: {
     fontSize: 13,

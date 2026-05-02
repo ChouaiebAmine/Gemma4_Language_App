@@ -4,10 +4,10 @@ from google.genai import types
 from google.adk.models.lite_llm import LiteLlm
 from dotenv import load_dotenv
 import os
+from llm import model, temperature
 
 load_dotenv()
 
-model = "gemini-3.1-flash-lite-preview"
 
 
 class Task(BaseModel):
@@ -19,9 +19,8 @@ class EasyWriting(BaseModel):
 
 
 easy_writing_agent = Agent(
-    # model='gemma-4-31b-it',
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=1.0),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature),
     name='easy_writing_agent',
     description='An agent useful for generating a writing activity for a language learning app',
     instruction="""Generate 3 sentences related to this topic: {topic}.
@@ -41,9 +40,8 @@ class MediumWriting(BaseModel):
 
 
 medium_writing_agent = Agent(
-    # model='gemma-4-31b-it',
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=1.0),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature),
     name='medium_writing_agent',
     description='An agent useful for generating a writing activity for a language learning app',
     instruction="""Generate an essay question based on the following topic: {topic}.

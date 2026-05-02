@@ -13,8 +13,12 @@ class ActivityModel(BaseModel):
     difficulty: int
     content: Dict[str, Any]
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    user_language: str
+    target_language: str
+    topic: str
 
 class EvaluationModel(BaseModel):
+    user_id: str
     type: str  # 'listening'
     difficulty: int
     user_input: str
@@ -30,4 +34,3 @@ class AchievementSubmitModel(BaseModel):
     user_id: str
     data: Dict[str, Any]
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-
