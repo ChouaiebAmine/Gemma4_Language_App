@@ -51,7 +51,7 @@ export default function SplashScreen({ navigation }) {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.container}>
         <LinearGradient colors={['#FF6B6B', '#FF8E8E']} style={styles.header}>
-          <Text style={styles.appTitle}>BahasaKu</Text>
+          <Text style={styles.appTitle}>Gemma App</Text>
           <Text style={styles.subtitle}>Master Local Languages</Text>
         </LinearGradient>
 

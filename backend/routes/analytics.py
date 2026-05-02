@@ -142,11 +142,13 @@ async def get_user_streak(user_id: str):
 
 
 @router.get("/learning-path/{user_id}")
-async def get_learning_path(user_id: str):
-    """Get user's learning path and recommendations."""
-    
-    # Get user's completed activities
-    cursor = evaluations_collection.find({"user_id": user_id})
+async def get_learning_path(user_id: str, language_id: str = None):
+    """Get user's learning path and recommendations, optionally filtered by language."""    
+    # Get user's completed activities (optionally scoped to a language)
+    query = {"user_id": user_id}
+    if language_id:
+        query["language_id"] = language_id
+    cursor = evaluations_collection.find(query)
     evaluations = await cursor.to_list(None)
     
     # Get activity types completed

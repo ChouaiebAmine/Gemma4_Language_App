@@ -150,7 +150,7 @@ export const analyticsAPI = {
   getUserStats: (userId) => api.get(`/analytics/user/${userId}`),
   getProgress: (userId) => api.get(`/analytics/progress/${userId}`),
   getStreak: (userId) => api.get(`/analytics/streak/${userId}`),
-  getLearningPath: (userId) => api.get(`/analytics/learning-path/${userId}`),
+  getLearningPath: (userId, languageId) => api.get(`/analytics/learning-path/${userId}`, { params: languageId ? { language_id: languageId } : {} }),
   getPerformance: (userId) => api.get(`/analytics/${userId}`),
 };
 

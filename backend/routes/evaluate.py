@@ -125,15 +125,19 @@ async def save_eval(
     user_input: str,
     activity_id: str,
     result: dict,
+    language_id: str = None,
 ):
-    await evaluations_collection.insert_one(EvaluationModel(
+    doc = EvaluationModel(
         user_id=user_id,
         type=activity_type,
         difficulty=difficulty,
         user_input=user_input,
         reference=activity_id,
         result=result,
-    ).model_dump())
+    ).model_dump()
+    if language_id:
+        doc["language_id"] = language_id
+    await evaluations_collection.insert_one(doc)
 
 
 # ─── Listening ───────────────────────────────────────────────────────────────
@@ -158,7 +162,7 @@ async def evaluate_easy_listening(body: EasyListeningEvalBody):
         feedback=f"{total}/{len(results)} correct.",
     )
 
-    await save_eval(body.user_id, "listening", 0, str(body.selected_words), body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "listening", 0, str(body.selected_words), body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output
 
 
@@ -174,7 +178,7 @@ async def evaluate_medium_listening(body: MediumListeningEvalBody):
     })
     output = MediumListeningEval.model_validate_json(text)
 
-    await save_eval(body.user_id, "listening", 1, body.transcription, body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "listening", 1, body.transcription, body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output
 
 
@@ -190,7 +194,7 @@ async def evaluate_hard_listening(body: HardListeningEvalBody):
     })
     output = HardListeningEval.model_validate_json(text)
 
-    await save_eval(body.user_id, "listening", 2, str(body.answers), body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "listening", 2, str(body.answers), body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output
 
 
@@ -208,7 +212,7 @@ async def evaluate_easy_writing(body: EasyWritingEvalBody):
     })
     output = EasyWritingEval.model_validate_json(text)
 
-    await save_eval(body.user_id, "writing", 0, str(body.answers), body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "writing", 0, str(body.answers), body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output
 
 
@@ -224,7 +228,7 @@ async def evaluate_medium_writing(body: MediumWritingEvalBody):
     })
     output = MediumWritingEval.model_validate_json(text)
 
-    await save_eval(body.user_id, "writing", 1, body.essay, body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "writing", 1, body.essay, body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output
 
 
@@ -236,7 +240,7 @@ async def evaluate_easy_reading_endpoint(body: EasyReadingEvalBody):
 
     output = evaluate_easy_reading(answers=body.answers, content=activity["content"])
 
-    await save_eval(body.user_id, "reading", 0, str(body.answers), body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "reading", 0, str(body.answers), body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output
 
 
@@ -246,7 +250,7 @@ async def evaluate_medium_reading_endpoint(body: MediumReadingEvalBody):
 
     output = evaluate_medium_reading(answers=body.answers, content=activity["content"])
 
-    await save_eval(body.user_id, "reading", 1, str(body.answers), body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "reading", 1, str(body.answers), body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output
 
 
@@ -262,5 +266,5 @@ async def evaluate_hard_reading(body: HardReadingEvalBody):
     })
     output = HardReadingEval.model_validate_json(text)
 
-    await save_eval(body.user_id, "reading", 2, str(body.answers), body.activity_id, output.model_dump())
+    await save_eval(body.user_id, "reading", 2, str(body.answers), body.activity_id, output.model_dump(), language_id=activity.get("language_id"))
     return output

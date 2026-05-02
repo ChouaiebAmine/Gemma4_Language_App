@@ -17,6 +17,7 @@ import * as Speech from 'expo-speech';
 
 export default function LearnScreen({ navigation, route }) {
   const { activity } = route.params || {};
+  const { selectedLanguage, fetchLanguageProgress } = useLanguage();
   const { user } = useUser();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -24,40 +25,40 @@ export default function LearnScreen({ navigation, route }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
- // Chouaieb: I will add it to mongo after testing
+
   // Derive the target language from the activity for TTS
-const LANGUAGE_CODES = {
-  'japanese': 'ja-JP',
-  'arabic': 'ar-SA',
-  'german': 'de-DE',
-  'italian': 'it-IT',
-  'french': 'fr-FR',
-  'spanish': 'es-ES'
-};
-
-// Update the targetLanguage derivation inside LearnScreen
-const targetLanguage = useMemo(() => {
-  const lang = activity?.target_language?.toLowerCase() || 'fr';
-  return LANGUAGE_CODES[lang] || lang; 
-}, [activity]);
+  const LANGUAGE_CODES = {
+    'japanese': 'ja-JP',
+    'arabic': 'ar-SA',
+    'german': 'de-DE',
+    'italian': 'it-IT',
+    'french': 'fr-FR',
+    'spanish': 'es-ES'
+  };
   
-
- const speakText = useCallback((text) => {
-  if (!text) return;
-  Speech.stop();
-  setIsSpeaking(true);
+  // Update the targetLanguage derivation inside LearnScreen
+  const targetLanguage = useMemo(() => {
+    const lang = activity?.target_language?.toLowerCase() || 'fr';
+    return LANGUAGE_CODES[lang] || lang; 
+  }, [activity]);
+    
   
-  Speech.speak(text, {
-    language: targetLanguage, // Now uses 'ja-JP', 'ar-SA', etc.
-    pitch: 1.0,
-    rate: 0.9, // Slightly slower for learning purposes
-    onDone: () => setIsSpeaking(false),
-    onError: (error) => {
-      console.error("TTS Error:", error);
-      setIsSpeaking(false);
-    },
-  });
-}, [targetLanguage]);
+   const speakText = useCallback((text) => {
+    if (!text) return;
+    Speech.stop();
+    setIsSpeaking(true);
+    
+    Speech.speak(text, {
+      language: targetLanguage, // Now uses 'ja-JP', 'ar-SA', etc.
+      pitch: 1.0,
+      rate: 0.9, // Slightly slower for learning purposes
+      onDone: () => setIsSpeaking(false),
+      onError: (error) => {
+        console.error("TTS Error:", error);
+        setIsSpeaking(false);
+      },
+    });
+  }, [targetLanguage]);
 
   // Auto-play TTS when question changes for listening activities
   useEffect(() => {
@@ -324,7 +325,12 @@ const targetLanguage = useMemo(() => {
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    // Refresh progress so the Home screen progress bar updates immediately
+    if (selectedLanguage) {
+      const langId = selectedLanguage._id || selectedLanguage.id;
+      await fetchLanguageProgress(langId);
+    }
     navigation.navigate('HomeMain');
   };
 

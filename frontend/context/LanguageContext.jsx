@@ -1,19 +1,94 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { languagesAPI, topicsAPI, activitiesAPI } from '../services/apiService';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { languagesAPI, topicsAPI, activitiesAPI, analyticsAPI } from '../services/apiService';
 import { useUser } from './UserContext';
 
 const LanguageContext = createContext();
+
+const ENROLLED_KEY = 'enrolled_languages';
 
 export const LanguageProvider = ({ children }) => {
   const { user } = useUser();
   const [languages, setLanguages] = useState([]);
   const [selectedLanguage, setSelectedLanguage] = useState(null);
+  const [enrolledLanguages, setEnrolledLanguages] = useState([]); // all languages user picked
+  const [languageProgress, setLanguageProgress] = useState({}); // { languageId: { pct, nextLevel } }
   const [topics, setTopics] = useState([]);
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Get all languages
+  // Load persisted enrolled languages on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ENROLLED_KEY);
+        if (stored) setEnrolledLanguages(JSON.parse(stored));
+      } catch (e) {
+        console.warn('Failed to load enrolled languages', e);
+      }
+    })();
+  }, []);
+
+  // Persist whenever enrolledLanguages changes
+  useEffect(() => {
+    AsyncStorage.setItem(ENROLLED_KEY, JSON.stringify(enrolledLanguages)).catch(() => {});
+  }, [enrolledLanguages]);
+
+  // ── helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * Compute per-language progress from the analytics learning-path endpoint.
+   * difficulty_levels: { listening: 0|1|2, writing: 0|1|2, reading: 0|1|2 }
+   * Each completed level adds 1/9 ≈ 11% (3 types × 3 difficulties = 9 milestones).
+   * We add 1 per completed level (difficulty reached means that level is done).
+   */
+  const computeProgress = (difficultyLevels = {}) => {
+    const types = ['listening', 'writing', 'reading'];
+    let milestonesDone = 0;
+    const nextLevels = [];
+
+    for (const type of types) {
+      const maxDiff = difficultyLevels[type]; // highest difficulty completed for this type
+      if (maxDiff === undefined) {
+        // not started — next level is beginner (0)
+        nextLevels.push({ type, difficulty: 0, label: 'Beginner' });
+      } else {
+        milestonesDone += maxDiff + 1; // completed 0..maxDiff
+        if (maxDiff < 2) {
+          const labels = ['Intermediate', 'Advanced'];
+          nextLevels.push({ type, difficulty: maxDiff + 1, label: labels[maxDiff] });
+        }
+      }
+    }
+
+    const pct = Math.round((milestonesDone / 9) * 100);
+    return { pct, nextLevels };
+  };
+
+  const fetchLanguageProgress = useCallback(async (languageId) => {
+    const userId = user?.id || 'user';
+    try {
+      const data = await analyticsAPI.getLearningPath(userId, languageId);
+      const difficultyLevels = data?.difficulty_levels || {};
+      const result = computeProgress(difficultyLevels);
+      setLanguageProgress(prev => ({ ...prev, [languageId]: result }));
+      return result;
+    } catch (e) {
+      console.warn('Progress fetch failed', e);
+      return { pct: 0, nextLevels: [] };
+    }
+  }, [user]);
+
+  // Refresh progress for all enrolled languages
+  const refreshAllProgress = useCallback(async () => {
+    for (const lang of enrolledLanguages) {
+      await fetchLanguageProgress(lang._id || lang.id);
+    }
+  }, [enrolledLanguages, fetchLanguageProgress]);
+
+  // ── public API ─────────────────────────────────────────────────────────────
+
   const fetchLanguages = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -30,32 +105,43 @@ export const LanguageProvider = ({ children }) => {
     }
   }, []);
 
-  // Select a language and fetch its topics
   const selectLanguage = useCallback(async (languageData) => {
-    const languageId = typeof languageData === 'object' ? (languageData._id || languageData.id) : languageData;
+    const languageId = typeof languageData === 'object'
+      ? (languageData._id || languageData.id)
+      : languageData;
 
     if (!languageId) {
-      console.warn("Attempted to select language with undefined ID");
+      console.warn('Attempted to select language with undefined ID');
       return;
     }
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const langResponse = await languagesAPI.getOne(languageId);
-      setSelectedLanguage(langResponse.data || langResponse);
-      
+      const lang = langResponse.data || langResponse;
+      setSelectedLanguage(lang);
+
+      // Add to enrolled list if not already there
+      setEnrolledLanguages(prev => {
+        const alreadyIn = prev.some(l => (l._id || l.id) === languageId);
+        return alreadyIn ? prev : [...prev, lang];
+      });
+
       const userMotherLanguage = user?.native_language || 'english';
-      const targetLanguageName = (langResponse.data || langResponse).name || 'spanish';
-      
+      const targetLanguageName = lang.name || 'spanish';
+
       const topicsResponse = await topicsAPI.getByLanguage(
         languageId,
         userMotherLanguage,
         targetLanguageName
       );
       setTopics(topicsResponse.data || topicsResponse);
-      
+
+      // Fetch progress for this language
+      await fetchLanguageProgress(languageId);
+
       return langResponse;
     } catch (err) {
       setError(err.message);
@@ -64,17 +150,16 @@ export const LanguageProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, fetchLanguageProgress]);
 
-  // Get topics for selected language
   const fetchTopics = useCallback(async (languageId) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const userMotherLanguage = user?.native_language || 'english';
       const targetLanguageName = selectedLanguage?.name || 'spanish';
-      
+
       const response = await topicsAPI.getByLanguage(
         languageId,
         userMotherLanguage,
@@ -91,31 +176,30 @@ export const LanguageProvider = ({ children }) => {
     }
   }, [user, selectedLanguage]);
 
-  // Generate AI topics for selected language
   const generateAiTopics = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       if (!selectedLanguage) {
-        setError("No language selected");
+        setError('No language selected');
         return null;
       }
-      
+
       const languageId = selectedLanguage._id || selectedLanguage.id;
       const userMotherLanguage = user?.native_language || 'english';
       const targetLanguageName = selectedLanguage.name || 'spanish';
-      
+
       const response = await topicsAPI.getByLanguage(
         languageId,
         userMotherLanguage,
         targetLanguageName
       );
-      
+
       setTopics(response.data || response);
       return response;
     } catch (err) {
-      setError("Failed to generate AI topics");
+      setError('Failed to generate AI topics');
       console.error('Error generating topics:', err);
       return null;
     } finally {
@@ -123,14 +207,11 @@ export const LanguageProvider = ({ children }) => {
     }
   }, [user, selectedLanguage]);
 
-  // Get activities for a topic
   const fetchActivities = useCallback(async (topicData) => {
     const topicId = typeof topicData === 'object' ? (topicData.id || topicData._id) : topicData;
-    
     try {
       setIsLoading(true);
       setError(null);
-      
       const response = await activitiesAPI.getByTopic(topicId);
       setActivities(response.data || response);
       return response;
@@ -143,31 +224,27 @@ export const LanguageProvider = ({ children }) => {
     }
   }, []);
 
-  // Generate activities using AI
   const generateActivities = useCallback(async (topicData) => {
     const topicId = typeof topicData === 'object' ? (topicData.id || topicData._id) : topicData;
-    
     try {
       setIsLoading(true);
       setError(null);
-      
+
       if (!selectedLanguage) {
-        setError("No language selected");
+        setError('No language selected');
         return null;
       }
-      
+
       const body = {
-        user_id: user?.id || "user",
-        topic: selectedLanguage.name || "General",
-        user_language: user?.native_language || "english",
-        target_language: selectedLanguage.name || "spanish",
+        user_id: user?.id || 'user',
+        topic: selectedLanguage.name || 'General',
+        user_language: user?.native_language || 'english',
+        target_language: selectedLanguage.name || 'spanish',
       };
-      
+
       const response = await activitiesAPI.generateActivities(topicId, body);
-      
       const generatedActivities = response.activities || response.data?.activities || [];
       setActivities(generatedActivities);
-      
       return response;
     } catch (err) {
       setError(err.message);
@@ -181,6 +258,8 @@ export const LanguageProvider = ({ children }) => {
   const value = {
     languages,
     selectedLanguage,
+    enrolledLanguages,
+    languageProgress,
     topics,
     activities,
     isLoading,
@@ -191,6 +270,8 @@ export const LanguageProvider = ({ children }) => {
     fetchActivities,
     generateActivities,
     generateAiTopics,
+    fetchLanguageProgress,
+    refreshAllProgress,
   };
 
   return (
