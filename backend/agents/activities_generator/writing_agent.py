@@ -4,7 +4,7 @@ from google.genai import types
 from google.adk.models.lite_llm import LiteLlm
 from dotenv import load_dotenv
 import os
-from llm import model, temperature
+from llm import model, temperature,top_k, top_p
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ class EasyWriting(BaseModel):
 
 easy_writing_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_p=top_p, top_k=top_k   ),
     name='easy_writing_agent',
     description='An agent useful for generating a writing activity for a language learning app',
     instruction="""Generate 3 sentences related to this topic: {topic}.
