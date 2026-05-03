@@ -29,9 +29,11 @@ export default function TopicsScreen({ navigation }) {
     }
   }, [selectedLanguage, fetchTopics]);
 
-  const handleSelectTopic = async (topicId) => {
+  const handleSelectTopic = async (topic) => {
+    // Pass full topic object so generateActivities can use the topic name for the AI
+    const topicId = topic.id || topic._id;
     await fetchActivities(topicId);
-    navigation.navigate('Activities', { topicId });
+    navigation.navigate('Activities', { topicId, topic });
   };
 
   return (
@@ -61,7 +63,7 @@ export default function TopicsScreen({ navigation }) {
             <TopicCard
               topic={item}
               colors={TOPIC_COLORS[index % TOPIC_COLORS.length]}
-              onPress={() => handleSelectTopic(item.id)}
+              onPress={() => handleSelectTopic(item)}
             />
           )}
         />

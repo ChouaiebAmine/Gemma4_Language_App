@@ -22,6 +22,7 @@ const ACTIVITY_TYPES = {
 export default function ActivitiesScreen({ navigation, route }) {
   const { activities, fetchActivities, generateActivities, isLoading } = useLanguage();
   const topicId = route.params?.topicId;
+  const topic = route.params?.topic; // full topic object with name
 
   useEffect(() => {
     if (topicId) {
@@ -30,8 +31,9 @@ export default function ActivitiesScreen({ navigation, route }) {
   }, [topicId, fetchActivities]);
 
   const handleGenerateActivities = async () => {
-    if (topicId) {
-      await generateActivities(topicId);
+    // Pass the full topic object so the AI agent receives the correct topic name
+    if (topic || topicId) {
+      await generateActivities(topic || topicId);
     }
   };
 

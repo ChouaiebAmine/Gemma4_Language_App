@@ -212,6 +212,7 @@ export const LanguageProvider = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
+      // Pass topic_id as query param so backend filters correctly
       const response = await activitiesAPI.getByTopic(topicId);
       setActivities(response.data || response);
       return response;
@@ -225,7 +226,13 @@ export const LanguageProvider = ({ children }) => {
   }, []);
 
   const generateActivities = useCallback(async (topicData) => {
+    // topicData can be a full topic object { id, name, target_name } or just an id string
     const topicId = typeof topicData === 'object' ? (topicData.id || topicData._id) : topicData;
+    // Use the topic's own name for the AI prompt — not the language name
+    const topicName = typeof topicData === 'object'
+      ? (topicData.target_name || topicData.name || 'General')
+      : 'General';
+
     try {
       setIsLoading(true);
       setError(null);
@@ -237,7 +244,8 @@ export const LanguageProvider = ({ children }) => {
 
       const body = {
         user_id: user?.id || 'user',
-        topic: selectedLanguage.name || 'General',
+        topic: topicName,           // actual topic name for AI (e.g. "Greetings", "Food")
+        topic_id: topicId,          // DB id so activities can be fetched later by topic
         user_language: user?.native_language || 'english',
         target_language: selectedLanguage.name || 'spanish',
       };
