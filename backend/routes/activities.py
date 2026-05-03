@@ -35,7 +35,8 @@ router = APIRouter(prefix="/activities", tags=["activities"])
 
 class GenerateActivityBody(BaseModel):
     user_id: str = Field(default="user")
-    topic: str = Field(default="Ordering at a restaurant")
+    topic: str = Field(default="Ordering at a restaurant")  # human-readable name for AI
+    topic_id: str = Field(default="")                       # DB id for filtering
     user_language: str = Field(default="english")
     target_language: str = Field(default="spanish")
 
@@ -82,6 +83,7 @@ async def save_activity(activity_type: str, difficulty: int, body: GenerateActiv
         user_language=body.user_language,
         target_language=body.target_language,
         topic=body.topic,
+        topic_id=body.topic_id,
     ).model_dump()
 
     result = await activities_collection.insert_one(doc)
@@ -96,14 +98,13 @@ async def get_activities(topic_id: Optional[str] = None, user_id: Optional[str] 
     """Get all activities or filter by topic_id."""
     query = {}
     if topic_id:
-        query["topic"] = topic_id
+        query["topic_id"] = topic_id   # match on the stored topic_id field
     if user_id:
         query["user_id"] = user_id
     
     cursor = activities_collection.find(query)
     activities = await cursor.to_list(length=100)
     
-    # Convert ObjectId to string
     for activity in activities:
         activity["_id"] = str(activity["_id"])
     

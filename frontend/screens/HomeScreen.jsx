@@ -88,7 +88,7 @@ export default function HomeScreen({ navigation }) {
             const nextLabel = nextStep
               ? `Next: ${DIFFICULTY_LABELS[nextStep.difficulty]} ${nextStep.type}`
               : pct >= 100
-              ? '🎉 Completed!'
+              ? 'Completed!'
               : 'Keep going!';
 
             return (
