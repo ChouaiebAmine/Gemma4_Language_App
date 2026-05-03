@@ -72,7 +72,7 @@ export default function LearnScreen({ navigation, route }) {
     const q = questions[currentQuestion];
     if (!q) return;
     if (q.type === 'listening_easy') {
-      speakText(q.word);
+      speakText(q.sentence); // speak the full sentence so student hears the missing word in context
     } else if (q.type === 'listening_medium') {
       speakText(q.target_sentence);
     } else if (q.type === 'listening_hard' && activity?.content?.dialogue) {
@@ -99,12 +99,14 @@ export default function LearnScreen({ navigation, route }) {
     switch (type) {
       case 'listening':
         if (difficulty === 0) {
-          // Easy listening: word selection
-          return (content.words || []).map((word, idx) => ({
+          // Easy listening: hear full sentence, pick the missing word
+          return (content.tasks || []).map((task, idx) => ({
             id: idx,
             type: 'listening_easy',
-            word: word.word,
-            similar: word.similar_sounding || [],
+            sentence: task.sentence,               // full sentence spoken via TTS
+            sentence_with_blank: task.sentence_with_blank, // displayed with ____
+            missing_word: task.missing_word,
+            options: task.options || [],           // pre-generated shuffled options
           }));
         } else if (difficulty === 1) {
           // Medium listening: transcription
@@ -192,7 +194,8 @@ export default function LearnScreen({ navigation, route }) {
         return [...([q.missing_word, ...q.distractors])].sort(() => Math.random() - 0.5);
       }
       if (q.type === 'listening_easy') {
-        return [...([q.word, ...q.similar])].sort(() => Math.random() - 0.5);
+        // Options already shuffled by the AI agent — just use them as-is
+        return [...q.options];
       }
       return [];
     });
@@ -362,14 +365,18 @@ export default function LearnScreen({ navigation, route }) {
         <View style={styles.questionCard}>
           <Text style={styles.questionType}>{question.type?.toUpperCase()}</Text>
 
-          {/* Listening Easy: Word Selection */}
+          {/* Listening Easy: hear sentence, pick the missing word */}
           {question.type === 'listening_easy' && (
             <>
-              <Text style={styles.questionText}>Listen and select the correct word:</Text>
-              <TouchableOpacity style={styles.ttsButton} onPress={() => speakText(question.word)}>
+              <Text style={styles.questionText}>What is the missing word?</Text>
+              <TouchableOpacity
+                style={styles.ttsButton}
+                onPress={() => speakText(question.sentence)}
+              >
                 <Ionicons name={isSpeaking ? 'volume-high' : 'play-circle'} size={56} color="#FF6B6B" />
                 <Text style={styles.ttsLabel}>{isSpeaking ? 'Playing…' : 'Tap to listen'}</Text>
               </TouchableOpacity>
+              <Text style={styles.sentenceWithBlank}>{question.sentence_with_blank}</Text>
               <View style={styles.optionsContainer}>
                 {shuffledOptions[currentQuestion].map((option, idx) => (
                   <TouchableOpacity
@@ -681,6 +688,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FF6B6B',
     fontWeight: '600',
+  },
+  sentenceWithBlank: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+    lineHeight: 28,
+    letterSpacing: 0.3,
   },
   word: {
     fontSize: 24,
