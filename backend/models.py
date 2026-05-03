@@ -15,7 +15,8 @@ class ActivityModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     user_language: str
     target_language: str
-    topic: str
+    topic: str        # human-readable topic name used by the AI agent
+    topic_id: str = "" # the DB id of the topic, used for filtering
 
 class EvaluationModel(BaseModel):
     user_id: str
