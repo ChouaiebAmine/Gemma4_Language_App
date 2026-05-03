@@ -145,15 +145,15 @@ async def save_eval(
 @router.post("/listening/easy")
 async def evaluate_easy_listening(body: EasyListeningEvalBody):
     activity = await fetch_activity(body.activity_id, "listening", 0)
-    words = activity["content"]["words"]
+    tasks = activity["content"]["tasks"]  # new schema: list of {sentence, sentence_with_blank, missing_word, options}
 
     results = [
         WordResult(
-            correct_word=task["word"],
+            correct_word=task["missing_word"],
             user_answer=answer,
-            correct=answer.strip().lower() == task["word"].strip().lower(),
+            correct=answer.strip().lower() == task["missing_word"].strip().lower(),
         )
-        for task, answer in zip(words, body.selected_words)
+        for task, answer in zip(tasks, body.selected_words)
     ]
     total = sum(r.correct for r in results)
     output = EasyListeningEval(
