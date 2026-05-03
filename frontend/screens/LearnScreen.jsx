@@ -15,6 +15,22 @@ import { useUser } from '../context/UserContext';
 import { evaluateAPI } from '../services/apiService';
 import * as Speech from 'expo-speech';
 
+// Defined outside component so it's not recreated on every render
+const LANGUAGE_CODES = {
+  'japanese': 'ja-JP',
+  'arabic': 'ar-SA',
+  'german': 'de-DE',
+  'italian': 'it-IT',
+  'french': 'fr-FR',
+  'spanish': 'es-ES',
+  'portuguese': 'pt-PT',
+  'chinese': 'zh-CN',
+  'korean': 'ko-KR',
+  'russian': 'ru-RU',
+  'dutch': 'nl-NL',
+  'turkish': 'tr-TR',
+};
+
 export default function LearnScreen({ navigation, route }) {
   const { activity } = route.params || {};
   const { selectedLanguage, fetchLanguageProgress } = useLanguage();
@@ -26,17 +42,7 @@ export default function LearnScreen({ navigation, route }) {
   const [completed, setCompleted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Derive the target language from the activity for TTS
-  const LANGUAGE_CODES = {
-    'japanese': 'ja-JP',
-    'arabic': 'ar-SA',
-    'german': 'de-DE',
-    'italian': 'it-IT',
-    'french': 'fr-FR',
-    'spanish': 'es-ES'
-  };
-  
-  // Update the targetLanguage derivation inside LearnScreen
+  // Derive the target language BCP-47 code from the activity for TTS
   const targetLanguage = useMemo(() => {
     const lang = activity?.target_language?.toLowerCase() || 'fr';
     return LANGUAGE_CODES[lang] || lang; 
@@ -277,11 +283,7 @@ export default function LearnScreen({ navigation, route }) {
           );
         }
       } else if (activity.type === 'reading') {
-        // Pad the answers array so the current answer lands at the correct
-        // task index when the backend does zip(tasks, answers).
-        const paddedAnswers = questions.map((_, i) =>
-          i === currentQuestion ? answers[currentQuestion] : ''
-        );
+        // paddedAnswers already declared above — reused here for reading
         if (activity.difficulty === 0) {
           const raw = await evaluateAPI.evaluateReadingEasy(
             activity._id || activity.id,

@@ -9,23 +9,31 @@ from llm import model, temperature, top_k, top_p
 load_dotenv()
 
 
-class WordEntry(BaseModel):
-    word: str
-    similar_sounding: list[str]
+# ─── Easy Listening: sentence fill-in-the-blank by ear ───────────────────────
+
+class ListeningTask(BaseModel):
+    sentence: str = Field(description="A natural sentence in {target_language} related to the topic.")
+    sentence_with_blank: str = Field(description="Same sentence with the missing_word replaced by '____'.")
+    missing_word: str = Field(description="The key word removed from the sentence that the student must identify.")
+    options: list[str] = Field(description="4 choices: correct missing_word + 3 plausible distractors in {target_language}. Not sorted.")
 
 class EasyListening(BaseModel):
-    words: list[WordEntry]
+    tasks: list[ListeningTask]
 
 
 easy_listening_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_p=top_p, top_k=top_k   ),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_k=top_k, top_p=top_p),
     name='easy_listening_agent',
-    description='An agent useful for generating a listening activity for a language learning app',
-    instruction="""Generate 5 words related to this topic: {topic}.
-    For each word, generate 3 similar-sounding words.
-    Generate all words in this language: {target_language}.
-    Respond only with a JSON object, no preamble, no markdown formatting.
+    description='Generates listening fill-in-the-blank tasks for a language learning app',
+    instruction="""Generate 5 listening tasks about the topic: {topic} in {target_language}.
+    For each task:
+    1. Write a short natural sentence in {target_language}.
+    2. Pick one key word as the missing_word.
+    3. Write sentence_with_blank: identical sentence but with missing_word replaced by '____'.
+    4. Write options: a shuffled list of 4 words — the correct missing_word plus 3 plausible distractors in {target_language}.
+    The learner will hear the full sentence (TTS) and must choose the missing word from the options.
+    Respond ONLY with a valid JSON object. No preamble, no markdown.
     """,
     output_schema=EasyListening,
     output_key="easy_listening"
