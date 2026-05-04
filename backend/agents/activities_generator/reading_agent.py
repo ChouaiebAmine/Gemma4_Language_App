@@ -24,7 +24,7 @@ class EasyReading(BaseModel):
 
 easy_reading_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_p=top_p, top_k=top_k   ),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name="easy_reading_agent",
     description="Generates a word-in-context matching activity for a reading exercise",
     instruction="""Generate 4 words related to this topic: {topic}.

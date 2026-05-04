@@ -31,9 +31,10 @@ export default function ActivitiesScreen({ navigation, route }) {
   }, [topicId, fetchActivities]);
 
   const handleGenerateActivities = async () => {
-    // Pass the full topic object so the AI agent receives the correct topic name
     if (topic || topicId) {
       await generateActivities(topic || topicId);
+      // Re-fetch so we pick up the freshly saved activities from the DB
+      if (topicId) await fetchActivities(topicId);
     }
   };
 
@@ -68,6 +69,17 @@ export default function ActivitiesScreen({ navigation, route }) {
             />
           )}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={
+            <TouchableOpacity
+              style={[styles.generateButton, { margin: 8, marginBottom: 24 }]}
+              onPress={handleGenerateActivities}
+              disabled={isLoading}
+            >
+              <Text style={styles.generateText}>
+                {isLoading ? 'Generating...' : '+ Generate More Activities'}
+              </Text>
+            </TouchableOpacity>
+          }
         />
       ) : (
         <View style={styles.emptyState}>
@@ -89,10 +101,16 @@ export default function ActivitiesScreen({ navigation, route }) {
   );
 }
 
+const DIFFICULTY_LABELS = { 0: 'Beginner', 1: 'Intermediate', 2: 'Advanced' };
+const DURATION_MAP = { 0: '3-5 mins', 1: '5-10 mins', 2: '10-15 mins' };
+
 function ActivityCard({ activity, onPress }) {
   const activityType = ACTIVITY_TYPES[activity.type] || ACTIVITY_TYPES.quiz;
-  const difficulty = activity.difficulty || 'Beginner';
-  const duration = activity.duration || '5-10 mins';
+  const difficultyLabel = DIFFICULTY_LABELS[activity.difficulty] ?? 'Beginner';
+  const duration = DURATION_MAP[activity.difficulty] ?? '5-10 mins';
+  // Derive a readable title since ActivityModel has no title field
+  const title = activity.title ||
+    `${activity.type?.charAt(0).toUpperCase() + activity.type?.slice(1)} — ${difficultyLabel}`;
 
   return (
     <TouchableOpacity style={styles.activityCard} onPress={onPress}>
@@ -109,16 +127,16 @@ function ActivityCard({ activity, onPress }) {
             />
           </View>
           <View style={styles.headerInfo}>
-            <Text style={styles.activityTitle}>{activity.title}</Text>
+            <Text style={styles.activityTitle}>{title}</Text>
             <Text style={styles.activityDesc}>
-              {activity.description || `Practice your ${activity.type} skills`}
+              {activity.description || `Practice your ${activity.type} skills on the topic: ${activity.topic || ''}`}
             </Text>
           </View>
         </View>
 
         <View style={styles.cardFooter}>
           <View style={styles.metaTags}>
-            <Tag icon="" label={difficulty} />
+            <Tag icon="" label={difficultyLabel} />
             <Tag icon="" label={duration} />
             {activity.points && <Tag icon="" label={`${activity.points} points`} />}
           </View>

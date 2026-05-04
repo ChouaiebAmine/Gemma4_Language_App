@@ -186,6 +186,7 @@ export default function LearnScreen({ navigation, route }) {
 
   // Pre-shuffle options once per question so they don't re-randomize on every render
   const shuffledOptions = useMemo(() => {
+    if (!activity) return [];
     return questions.map((q) => {
       if (q.type === 'reading_easy') {
         return [...([q.translation, ...q.distractors])].sort(() => Math.random() - 0.5);
@@ -200,6 +201,31 @@ export default function LearnScreen({ navigation, route }) {
       return [];
     });
   }, [activity]); // only recompute when the activity itself changes
+
+  // Auto-play TTS when question changes for listening activities
+  // Placed after questions/shuffledOptions so they are in scope
+  useEffect(() => {
+    if (!activity || !questions.length) return;
+    const q = questions[currentQuestion];
+    if (!q) return;
+    if (q.type === 'listening_easy') {
+      speakText(q.sentence);
+    } else if (q.type === 'listening_medium') {
+      speakText(q.target_sentence);
+    } else if (q.type === 'listening_hard' && activity?.content?.dialogue) {
+      const lines = activity.content.dialogue.map(d => d.line).join('. ');
+      speakText(lines);
+    }
+    return () => Speech.stop();
+  }, [currentQuestion, activity]);
+
+  if (!activity) {
+    return (
+      <View style={styles.container}>
+        <Text>No activity selected</Text>
+      </View>
+    );
+  }
 
   const handleAnswerChange = (text) => {
     setAnswers({ ...answers, [currentQuestion]: text });

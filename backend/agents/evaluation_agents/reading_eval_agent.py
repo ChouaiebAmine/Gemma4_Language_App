@@ -84,7 +84,7 @@ class HardReadingEval(BaseModel):
 
 hard_reading_eval_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_p=top_p, top_k=top_k),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name="hard_reading_eval_agent",
     description="Evaluates open-ended comprehension answers for a hard reading activity",
     instruction="""You are evaluating a reading comprehension exercise.

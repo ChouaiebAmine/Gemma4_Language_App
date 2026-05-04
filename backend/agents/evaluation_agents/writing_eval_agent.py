@@ -24,7 +24,7 @@ class EasyWritingEval(BaseModel):
 
 easy_writing_eval_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=0.2, top_p=top_p, top_k=top_k),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name="easy_writing_eval_agent",
     description="Evaluates fill-in-the-blank answers for an easy writing activity",
     instruction="""You are evaluating a fill-in-the-blank writing exercise.

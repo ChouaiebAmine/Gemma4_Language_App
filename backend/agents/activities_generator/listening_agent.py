@@ -23,7 +23,7 @@ class EasyListening(BaseModel):
 
 easy_listening_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature, top_k=top_k, top_p=top_p),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name='easy_listening_agent',
     description='Generates listening fill-in-the-blank tasks for a language learning app',
     instruction="""Generate 5 listening tasks about the topic: {topic} in {target_language}.
