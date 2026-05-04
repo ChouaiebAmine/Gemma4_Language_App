@@ -11,8 +11,10 @@ export const LanguageProvider = ({ children }) => {
   const { user } = useUser();
   const [languages, setLanguages] = useState([]);
   const [selectedLanguage, setSelectedLanguage] = useState(null);
-  const [enrolledLanguages, setEnrolledLanguages] = useState([]); // all languages user picked
-  const [languageProgress, setLanguageProgress] = useState({}); // { languageId: { pct, nextLevel } }
+  const [enrolledLanguages, setEnrolledLanguages] = useState([]);
+  const [languageProgress, setLanguageProgress] = useState({});
+  const [topicProgress, setTopicProgress] = useState({}); // { topic_id: { easy_completed, easy_types_done, medium_completed, hard_completed } }
+  const [easyProgressPct, setEasyProgressPct] = useState(0); // 0-100 % of easy topics completed
   const [topics, setTopics] = useState([]);
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,12 +82,28 @@ export const LanguageProvider = ({ children }) => {
     }
   }, [user]);
 
+  const fetchTopicProgress = useCallback(async (languageId) => {
+    const userId = user?.id || 'user';
+    try {
+      const data = await analyticsAPI.getTopicProgress(userId, languageId || undefined);
+      const completions = data?.topic_completions || {};
+      setTopicProgress(completions);
+      setEasyProgressPct(data?.easy_progress_pct || 0);
+      return data;
+    } catch (e) {
+      console.warn('Topic progress fetch failed', e);
+      return { topic_completions: {}, easy_progress_pct: 0 };
+    }
+  }, [user]);
+
   // Refresh progress for all enrolled languages
   const refreshAllProgress = useCallback(async () => {
     for (const lang of enrolledLanguages) {
-      await fetchLanguageProgress(lang._id || lang.id);
+      const langId = lang._id || lang.id;
+      await fetchLanguageProgress(langId);
+      await fetchTopicProgress(langId);
     }
-  }, [enrolledLanguages, fetchLanguageProgress]);
+  }, [enrolledLanguages, fetchLanguageProgress, fetchTopicProgress]);
 
   // ── public API ─────────────────────────────────────────────────────────────
 
@@ -141,6 +159,7 @@ export const LanguageProvider = ({ children }) => {
 
       // Fetch progress for this language
       await fetchLanguageProgress(languageId);
+      await fetchTopicProgress(languageId);
 
       return langResponse;
     } catch (err) {
@@ -263,11 +282,50 @@ export const LanguageProvider = ({ children }) => {
     }
   }, [user, selectedLanguage]);
 
+  const generateActivitiesForDifficulty = useCallback(async (topicData, difficulty) => {
+    const topicId = typeof topicData === 'object' ? (topicData.id || topicData._id) : topicData;
+    const topicName = typeof topicData === 'object'
+      ? (topicData.target_name || topicData.name || 'General')
+      : 'General';
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!selectedLanguage) {
+        setError('No language selected');
+        return null;
+      }
+
+      const body = {
+        user_id: user?.id || 'user',
+        topic: topicName,
+        topic_id: topicId,
+        user_language: user?.native_language || 'english',
+        target_language: selectedLanguage.name || 'spanish',
+      };
+
+      const response = await activitiesAPI.generateActivitiesForDifficulty(topicId, difficulty, body);
+      // After generating, re-fetch all activities for the topic
+      const allActivities = await activitiesAPI.getByTopic(topicId);
+      setActivities(allActivities.data || allActivities);
+      return response;
+    } catch (err) {
+      setError(err.message);
+      console.error('Error generating activities for difficulty:', err);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, selectedLanguage]);
+
   const value = {
     languages,
     selectedLanguage,
     enrolledLanguages,
     languageProgress,
+    topicProgress,
+    easyProgressPct,
     topics,
     activities,
     isLoading,
@@ -277,8 +335,10 @@ export const LanguageProvider = ({ children }) => {
     fetchTopics,
     fetchActivities,
     generateActivities,
+    generateActivitiesForDifficulty,
     generateAiTopics,
     fetchLanguageProgress,
+    fetchTopicProgress,
     refreshAllProgress,
   };
 

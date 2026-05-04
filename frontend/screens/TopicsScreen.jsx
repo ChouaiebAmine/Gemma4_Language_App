@@ -12,10 +12,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 
 const TOPIC_COLORS = [
-  ['#FF6B6B', '#FF8E8E'],
-  ['#4ECDC4', '#45B9B0'],
-  ['#FFB6C1', '#FFA0B4'],
-  ['#87CEEB', '#6FB8DB'],
+  ['#7c3d3d', '#7c3d3d'],
+  ['#1d7c75', '#1d7c75'],
+  ['#e17686', '#e17686'],
+  ['#3884a2', '#6FB8DB'],
   ['#FFD700', '#FFC700'],
   ['#9370DB', '#8560C8'],
 ];
@@ -39,7 +39,7 @@ export default function TopicsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={['#FF6B6B', '#FF8E8E']} style={styles.header}>
+      <LinearGradient colors={['#32435e', '#32435e']} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color="#fff" />
@@ -69,7 +69,7 @@ export default function TopicsScreen({ navigation }) {
         />
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🤖</Text>
+          <Text style={styles.emptyIcon}><Ionicons name="book" size={40} color="#ccc" /></Text>
           <Text style={styles.emptyText}>No topics found</Text>
           <TouchableOpacity 
             style={styles.generateButton} 
@@ -89,7 +89,7 @@ function TopicCard({ topic, colors, onPress }) {
       <LinearGradient colors={colors} style={styles.cardGradient}>
         <View style={styles.cardContent}>
           <Text style={styles.topicIcon}>
-            {topic.icon || '📖'}
+            {topic.icon || <Ionicons name="book" size={40} color="#fff" />}
           </Text>
           <View style={styles.topicInfo}>
             <Text style={styles.topicName}>{topic.name}</Text>

@@ -33,7 +33,7 @@ const LANGUAGE_CODES = {
 
 export default function LearnScreen({ navigation, route }) {
   const { activity } = route.params || {};
-  const { selectedLanguage, fetchLanguageProgress } = useLanguage();
+  const { selectedLanguage, fetchLanguageProgress, fetchTopicProgress } = useLanguage();
   const { user } = useUser();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -361,6 +361,7 @@ export default function LearnScreen({ navigation, route }) {
     if (selectedLanguage) {
       const langId = selectedLanguage._id || selectedLanguage.id;
       await fetchLanguageProgress(langId);
+      await fetchTopicProgress(langId);
     }
     navigation.navigate('HomeMain');
   };

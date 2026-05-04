@@ -266,3 +266,49 @@ async def generate_reading_activity(difficulty: int, body: GenerateActivityBody)
     text = await run_agent(agent, body)
     output = schema.model_validate_json(text)
     return await save_activity("reading", difficulty, body, output.model_dump())
+
+@router.post("/generate/{topic_id}/difficulty/{difficulty}")
+async def generate_activities_for_difficulty(topic_id: str, difficulty: int, body: GenerateActivityBody):
+    """
+    Generate activities for a specific difficulty level (0=easy, 1=medium, 2=hard).
+    Only called after the previous difficulty is completed.
+    """
+    if difficulty not in [0, 1, 2]:
+        raise HTTPException(status_code=400, detail="difficulty must be 0, 1, or 2")
+
+    match difficulty:
+        case 0:
+            configs = [
+                ("listening", 0, easy_listening_agent, EasyListening),
+                ("writing", 0, easy_writing_agent, EasyWriting),
+                ("reading", 0, easy_reading_agent, EasyReading),
+            ]
+        case 1:
+            configs = [
+                ("listening", 1, medium_listening_agent, MediumListening),
+                ("writing", 1, medium_writing_agent, MediumWriting),
+                ("reading", 1, medium_reading_agent, MediumReading),
+            ]
+        case 2:
+            configs = [
+                ("listening", 2, hard_listening_agent, HardListening),
+                ("reading", 2, hard_reading_agent, HardReading),
+            ]
+
+    generated_activities = []
+    for activity_type, diff, agent, schema in configs:
+        try:
+            text = await run_agent(agent, body)
+            output = schema.model_validate_json(text)
+            activity = await save_activity(activity_type, diff, body, output.model_dump())
+            generated_activities.append(activity)
+        except Exception as e:
+            print(f"Error generating {activity_type} difficulty={diff}: {str(e)}")
+            continue
+
+    return {
+        "topic_id": topic_id,
+        "difficulty": difficulty,
+        "activities": generated_activities,
+        "count": len(generated_activities)
+    }

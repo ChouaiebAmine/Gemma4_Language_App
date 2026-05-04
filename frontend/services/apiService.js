@@ -73,6 +73,8 @@ export const activitiesAPI = {
   delete: (activityId) => api.delete(`/activities/${activityId}`),
   generateActivities: (topicId, body) => 
     api.post(`/activities/generate/${encodeURIComponent(topicId)}`, body || {}),
+  generateActivitiesForDifficulty: (topicId, difficulty, body) =>
+    api.post(`/activities/generate/${encodeURIComponent(topicId)}/difficulty/${difficulty}`, body || {}),
   generateListening: (difficulty, body) => 
     api.post(`/activities/listening?difficulty=${difficulty}`, body),
   generateWriting: (difficulty, body) => 
@@ -152,6 +154,7 @@ export const analyticsAPI = {
   getStreak: (userId) => api.get(`/analytics/streak/${userId}`),
   getLearningPath: (userId, languageId) => api.get(`/analytics/learning-path/${userId}`, { params: languageId ? { language_id: languageId } : {} }),
   getPerformance: (userId) => api.get(`/analytics/${userId}`),
+  getTopicProgress: (userId, languageId) => api.get(`/analytics/topic-progress/${userId}`, { params: languageId ? { language_id: languageId } : {} }),
 };
 
 // ─── Auth API ────────────────────────────────────────────────────────────────

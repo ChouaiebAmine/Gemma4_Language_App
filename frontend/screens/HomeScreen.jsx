@@ -22,6 +22,7 @@ export default function HomeScreen({ navigation }) {
     selectedLanguage,
     enrolledLanguages,
     languageProgress,
+    easyProgressPct,
     fetchLanguages,
     selectLanguage,
     fetchLanguageProgress,
@@ -54,7 +55,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={['#6faada', '#7870cb']} style={styles.header}>
+      <LinearGradient colors={['#32435e', '#32435e']} style={styles.header}>
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>Welcome back!</Text>
@@ -80,16 +81,6 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Continue Learning</Text>
           {enrolledLanguages.map((lang) => {
             const langId = lang._id || lang.id;
-            const progress = languageProgress[langId] || { pct: 0, nextLevels: [] };
-            const pct = progress.pct || 0;
-
-            // Find the most relevant next step to show
-            const nextStep = progress.nextLevels?.[0];
-            const nextLabel = nextStep
-              ? `Next: ${DIFFICULTY_LABELS[nextStep.difficulty]} ${nextStep.type}`
-              : pct >= 100
-              ? 'Completed!'
-              : 'Keep going!';
 
             return (
               <TouchableOpacity
@@ -100,12 +91,21 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.continueContent}>
                   <View style={styles.continueHeader}>
                     <Text style={styles.continueLanguage}>{lang.name}</Text>
-                    <Text style={styles.continuePct}>{pct}%</Text>
+                    <Text style={styles.continuePct}>{easyProgressPct}%</Text>
                   </View>
-                  <Text style={styles.continueNext}>{nextLabel}</Text>
+                  <Text style={styles.continueNext}>
+                    {easyProgressPct >= 100
+                      ? '🏆 All Easy topics completed!'
+                      : easyProgressPct > 0
+                      ? `🌱 Easy topics: ${easyProgressPct}% complete`
+                      : 'Start your first activity!'}
+                  </Text>
                   <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${pct}%` }]} />
+                    <View style={[styles.progressFill, { width: `${easyProgressPct}%` }]} />
                   </View>
+                  {easyProgressPct >= 100 && (
+                    <Text style={styles.unlockedHint}>🔥 Medium difficulty unlocked!</Text>
+                  )}
                 </View>
                 <Ionicons name="chevron-forward" size={24} color="#FF6B6B" />
               </TouchableOpacity>
@@ -253,6 +253,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: '#FF6B6B', borderRadius: 3 },
+  unlockedHint: { fontSize: 12, color: '#FF6B6B', fontWeight: '600', marginTop: 4 },
 
   languageCard: { marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
   languageGradient: {
