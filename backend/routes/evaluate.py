@@ -14,8 +14,8 @@ from agents.evaluation_agents.reading_eval_agent import (
     evaluate_easy_reading, evaluate_medium_reading, hard_reading_eval_agent,
 )
 from agents.evaluation_agents.writing_eval_agent import (
-    EasyWritingEval, MediumWritingEval,
-    easy_writing_eval_agent, medium_writing_eval_agent,
+    EasyWritingEval, MediumWritingEval, HardWritingEval,
+    easy_writing_eval_agent, medium_writing_eval_agent, hard_writing_eval_agent
 )
 
 from google.adk.sessions import InMemorySessionService
@@ -58,7 +58,9 @@ class EasyWritingEvalBody(ActivityBase):
 class MediumWritingEvalBody(ActivityBase):
     activity_id: str
     essay: str
-
+class HardWritingEvalBody(ActivityBase):
+    activity_id: str
+    essay: str
 # Reading
 class EasyReadingEvalBody(ActivityBase):
     activity_id: str
@@ -125,8 +127,9 @@ async def save_eval(
     user_input: str,
     activity_id: str,
     result: dict,
-    language_id: str = None,
-    topic_id: str = None,
+    language_id: str = "",
+    topic_id: str = "",
+    status: str = "completed",
 ):
     doc = EvaluationModel(
         user_id=user_id,
@@ -135,11 +138,10 @@ async def save_eval(
         user_input=user_input,
         reference=activity_id,
         result=result,
+        status=status,
+        language_id=language_id or "",
+        topic_id=topic_id or "",
     ).model_dump()
-    if language_id:
-        doc["language_id"] = language_id
-    if topic_id:
-        doc["topic_id"] = topic_id
     await evaluations_collection.insert_one(doc)
 
 
@@ -233,7 +235,20 @@ async def evaluate_medium_writing(body: MediumWritingEvalBody):
 
     await save_eval(body.user_id, "writing", 1, body.essay, body.activity_id, output.model_dump(), language_id=activity.get("language_id"), topic_id=activity.get("topic_id"))
     return output
+@router.post("/writing/hard")
+async def evaluate_hard_writing(body: HardWritingEvalBody):
+    activity = await fetch_activity(body.activity_id, "writing", 2)
 
+    text = await run_agent(hard_writing_eval_agent, body.user_id, state={
+        "user_input":      body.essay,
+        "reference":       activity["content"]["essay_topic"],
+        "user_language":   activity["user_language"],
+        "target_language": activity["target_language"],
+    })
+    output = HardWritingEval.model_validate_json(text)
+
+    await save_eval(body.user_id, "writing", 2, body.essay, body.activity_id, output.model_dump(), language_id=activity.get("language_id"), topic_id=activity.get("topic_id"))
+    return output
 
 # ─── Reading ─────────────────────────────────────────────────────────────────
 

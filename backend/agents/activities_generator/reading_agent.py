@@ -53,7 +53,7 @@ class MediumReading(BaseModel):
 
 medium_reading_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name="medium_reading_agent",
     description="Generates fill-in-the-blank sentence tasks for a reading exercise",
     instruction="""Generate 4 sentences related to this topic: {topic} in {target_language}.
@@ -79,7 +79,7 @@ class HardReading(BaseModel):
 
 hard_reading_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name="hard_reading_agent",
     description="Generates a paragraph with open-ended comprehension questions for a reading exercise",
     instruction="""Generate a short paragraph (4-6 sentences) related to this topic: {topic} in {target_language}.

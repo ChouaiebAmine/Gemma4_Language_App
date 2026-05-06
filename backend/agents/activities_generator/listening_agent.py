@@ -47,7 +47,7 @@ class MediumListening(BaseModel):
 
 medium_listening_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name='medium_listening_agent',
     description='An agent useful for generating a listening activity for a language learning app',
     instruction="""Generate a sentence related to this topic: {topic}.
@@ -68,7 +68,7 @@ class HardListening(BaseModel):
 
 hard_listening_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name='hard_listening_agent',
     description='An agent useful for generating a listening activity for a language learning app',
     instruction="""Generate a short dialogue related to this topic: {topic}.

@@ -1,7 +1,20 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+// SecureStore doesn't work on web — fall back to localStorage
+const getToken = async () => {
+  try {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem('userToken');
+    }
+    return await SecureStore.getItemAsync('userToken');
+  } catch {
+    return null;
+  }
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -14,7 +27,7 @@ const api = axios.create({
 // Add token to requests
 api.interceptors.request.use(async (config) => {
   try {
-    const token = await SecureStore.getItemAsync('userToken');
+    const token = await getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -111,6 +124,12 @@ export const evaluateAPI = {
     }),
   evaluateWritingMedium: (activityId, essay, userId) =>
     api.post(`/evaluate/writing/medium`, { 
+      activity_id: activityId, 
+      essay,
+      user_id: userId 
+    }),
+  evaluateWritingHard: (activityId, essay, userId) =>
+    api.post(`/evaluate/writing/hard`, { 
       activity_id: activityId, 
       essay,
       user_id: userId 

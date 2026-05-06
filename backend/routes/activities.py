@@ -11,6 +11,7 @@ from agents.activities_generator.listening_agent import (
 from agents.activities_generator.writing_agent import (
     easy_writing_agent, EasyWriting,
     medium_writing_agent, MediumWriting,
+    hard_writing_agent, HardWriting,
 )
 from agents.activities_generator.reading_agent import (
     easy_reading_agent, EasyReading,
@@ -37,6 +38,7 @@ class GenerateActivityBody(BaseModel):
     user_id: str = Field(default="user")
     topic: str = Field(default="Ordering at a restaurant")  # human-readable name for AI
     topic_id: str = Field(default="")                       # DB id for filtering
+    language_id: str = Field(default="")                    # DB id of the language
     user_language: str = Field(default="english")
     target_language: str = Field(default="spanish")
 
@@ -84,6 +86,7 @@ async def save_activity(activity_type: str, difficulty: int, body: GenerateActiv
         target_language=body.target_language,
         topic=body.topic,
         topic_id=body.topic_id,
+        language_id=body.language_id,
     ).model_dump()
 
     result = await activities_collection.insert_one(doc)
@@ -138,6 +141,8 @@ async def create_activity(activity_data: GenerateActivityBody):
         user_language=activity_data.user_language,
         target_language=activity_data.target_language,
         topic=activity_data.topic,
+        topic_id=activity_data.topic_id,
+        language_id=activity_data.language_id,
     ).model_dump()
     
     result = await activities_collection.insert_one(doc)
@@ -241,6 +246,8 @@ async def generate_writing_activity(difficulty: int, body: GenerateActivityBody)
             agent, schema = easy_writing_agent, EasyWriting
         case 1:
             agent, schema = medium_writing_agent, MediumWriting
+        case 2:
+            agent, schema = hard_writing_agent, HardWriting
         case _:
             raise HTTPException(status_code=400, detail=f"Invalid difficulty: {difficulty}")
 
@@ -293,6 +300,7 @@ async def generate_activities_for_difficulty(topic_id: str, difficulty: int, bod
             configs = [
                 ("listening", 2, hard_listening_agent, HardListening),
                 ("reading", 2, hard_reading_agent, HardReading),
+                ("writing", 2, hard_writing_agent, HardWriting),
             ]
 
     generated_activities = []

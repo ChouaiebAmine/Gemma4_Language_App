@@ -63,8 +63,8 @@ function MainTabs() {
           fontWeight: '500',
           marginTop: -5,
         },
-        tabBarActiveTintColor: '#FF6B6B',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: '#817a7a',
+        tabBarInactiveTintColor: '#817a7a',
       })}
     >
       <Tab.Screen
@@ -73,7 +73,7 @@ function MainTabs() {
         options={{
           tabBarLabel: 'Learn',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="home" size={size}  />
           ),
         }}
       />
@@ -83,7 +83,7 @@ function MainTabs() {
         options={{
           tabBarLabel: 'Languages',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="language-python" size={size} color={color} />
+            <Ionicons name="language" size={size}  />
           ),
         }}
       />

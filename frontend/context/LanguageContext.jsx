@@ -265,6 +265,7 @@ export const LanguageProvider = ({ children }) => {
         user_id: user?.id || 'user',
         topic: topicName,           // actual topic name for AI (e.g. "Greetings", "Food")
         topic_id: topicId,          // DB id so activities can be fetched later by topic
+        language_id: selectedLanguage._id || selectedLanguage.id || '',
         user_language: user?.native_language || 'english',
         target_language: selectedLanguage.name || 'spanish',
       };
@@ -301,6 +302,7 @@ export const LanguageProvider = ({ children }) => {
         user_id: user?.id || 'user',
         topic: topicName,
         topic_id: topicId,
+        language_id: selectedLanguage._id || selectedLanguage.id || '',
         user_language: user?.native_language || 'english',
         target_language: selectedLanguage.name || 'spanish',
       };

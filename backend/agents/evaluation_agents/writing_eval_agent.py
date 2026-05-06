@@ -72,7 +72,7 @@ class MediumWritingEval(BaseModel):
 
 medium_writing_eval_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name="medium_writing_eval_agent",
     description="Evaluates a short essay for a medium writing activity",
     instruction="""You are evaluating a short essay written by a language learner.
@@ -98,4 +98,39 @@ Respond only with a JSON object, no preamble, no markdown formatting.
 """,
     output_schema=MediumWritingEval,
     output_key="medium_writing_eval",
+)
+
+class HardWritingEval(BaseModel):
+    total_score: int = Field(description="Overall score out of 100 based on the rubric")
+    rubric: WritingRubric
+    feedback: str = Field(description="Detailed feedback in the user's language covering each rubric dimension and suggestions for improvement")
+
+hard_writing_eval_agent = Agent(
+    model=model,
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
+    name="hard_writing_eval_agent",
+    description="Evaluates a detailed essay for a hard writing activity",
+    instruction="""You are evaluating a detailed essay written by a language learner.
+
+The reference is the essay question/topic that was given to the user:
+{reference}
+
+The user's essay:
+{user_input}
+
+User's language: {user_language}
+Target language: {target_language}
+
+Score the essay on four dimensions, each out of 25:
+- grammar: correctness of grammar and spelling in {target_language}
+- vocabulary: range and appropriateness of vocabulary
+- coherence: logical structure, flow, and clarity
+- relevance: how well the essay addresses the given topic
+
+Sum all four for total_score (out of 100).
+Write detailed feedback in {user_language} addressing each dimension.
+Respond only with a JSON object, no preamble, no markdown formatting.
+""",
+    output_schema=HardWritingEval,
+    output_key="hard_writing_eval",
 )

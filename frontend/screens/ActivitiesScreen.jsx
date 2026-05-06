@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -21,9 +22,9 @@ const ACTIVITY_TYPES = {
 };
 
 const DIFFICULTY_CONFIG = [
-  { level: 0, label: 'Easy', emoji: <Ionicons name="leaf" color="#ffff"/>, colors: ['#4ECDC4', '#45B9B0'] },
-  { level: 1, label: 'Medium', emoji: <Ionicons name="plant-wilt" color="#ffff"/>, colors: ['#FFB347', '#FF8C00'] },
-  { level: 2, label: 'Hard', emoji: <Ionicons name="tree" color="#ffff"/>, colors: ['#9370DB', '#7B52D4'] },
+  { level: 0, label: 'Easy', emoji: <Ionicons name="leaf" size={20} color="#fff" />, colors: ['#4ECDC4', '#45B9B0'] },
+  { level: 1, label: 'Medium', emoji: <Ionicons name="flame" size={20} color="#fff" />, colors: ['#FFB347', '#FF8C00'] },
+  { level: 2, label: 'Hard', emoji: <Ionicons name="bolt" size={20} color="#fff" />, colors: ['#9370DB', '#7B52D4'] },
 ];
 
 const ALL_TYPES = ['listening', 'writing', 'reading'];
@@ -45,15 +46,16 @@ export default function ActivitiesScreen({ navigation, route }) {
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [generatingDifficulty, setGeneratingDifficulty] = useState(null);
 
-  useEffect(() => {
-    if (topicId) {
-      fetchActivities(topicId);
-      // Also refresh topic progress so completion badges are accurate
-      if (selectedLanguage) {
-        fetchTopicProgress(selectedLanguage._id || selectedLanguage.id);
+  useFocusEffect(
+    useCallback(() => {
+      if (topicId) {
+        fetchActivities(topicId);
+        if (selectedLanguage) {
+          fetchTopicProgress(selectedLanguage._id || selectedLanguage.id);
+        }
       }
-    }
-  }, [topicId]);
+    }, [topicId, selectedLanguage])
+  );
 
   // Derive completion state for this topic from context
   const topicCompletion = topicProgress[topicId] || {
@@ -115,7 +117,12 @@ export default function ActivitiesScreen({ navigation, route }) {
   };
 
   const handleStartActivity = (activity) => {
-    navigation.navigate('Learn', { activity });
+    // Pass all activities for this difficulty so results screen can suggest the other types
+    const sameLevel = Object.values(activitiesByDifficulty[selectedDifficulty] || []);
+    navigation.navigate('Learn', {
+      activity,
+      topicActivities: sameLevel,
+    });
   };
 
   const currentActivities = activitiesByDifficulty[selectedDifficulty] || [];
@@ -126,7 +133,7 @@ export default function ActivitiesScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={['#3a6567', '#6a71d5']} style={styles.header}>
+      <LinearGradient colors={['#32435e', '#32435e']} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color="#fff" />
@@ -174,7 +181,7 @@ export default function ActivitiesScreen({ navigation, route }) {
         <View style={[styles.banner, styles.bannerSuccess]}>
           <Ionicons name="checkmark-circle" size={20} color="#fff" />
           <Text style={styles.bannerText}>
-            Level completed! {selectedDifficulty < 2 ? `${DIFFICULTY_CONFIG[selectedDifficulty + 1].label} is now unlocked 🎉` : 'You mastered this topic! 🏆'}
+            Level completed! {selectedDifficulty < 2 ? `${DIFFICULTY_CONFIG[selectedDifficulty + 1].label} is now unlocked ` : 'You mastered this topic! '}
           </Text>
         </View>
       ) : !isCurrentUnlocked ? (
@@ -235,7 +242,7 @@ export default function ActivitiesScreen({ navigation, route }) {
         />
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>📚</Text>
+          <Text style={styles.emptyIcon}>{<Ionicons name="book" size={40} color="#5176b1" />}</Text>
           <Text style={styles.emptyText}>No {DIFFICULTY_CONFIG[selectedDifficulty].label} activities yet</Text>
           <Text style={styles.emptyDesc}>Generate AI activities for this difficulty</Text>
           <TouchableOpacity
@@ -288,9 +295,9 @@ function ActivityCard({ activity, onPress, completed }) {
 
         <View style={styles.cardFooter}>
           <View style={styles.metaTags}>
-            <Tag icon={<Ionicons name="star" color="#fff" />} label={difficultyLabel} />
-            <Tag icon={<Ionicons name="timer" color="#fff" />} label={duration} />
-            {activity.points && <Tag icon={<Ionicons name="trophy" color="#fff" />} label={`${activity.points} pts`} />}
+            <Tag icon="⭐" label={difficultyLabel} />
+            <Tag icon="⏱" label={duration} />
+            {activity.points && <Tag icon="🏅" label={`${activity.points} pts`} />}
           </View>
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </View>

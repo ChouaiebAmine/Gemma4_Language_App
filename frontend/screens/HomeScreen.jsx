@@ -95,16 +95,16 @@ export default function HomeScreen({ navigation }) {
                   </View>
                   <Text style={styles.continueNext}>
                     {easyProgressPct >= 100
-                      ? '🏆 All Easy topics completed!'
+                      ? ' All Easy topics completed!'
                       : easyProgressPct > 0
-                      ? `🌱 Easy topics: ${easyProgressPct}% complete`
+                      ? ` Easy topics: ${easyProgressPct}% complete`
                       : 'Start your first activity!'}
                   </Text>
                   <View style={styles.progressBar}>
                     <View style={[styles.progressFill, { width: `${easyProgressPct}%` }]} />
                   </View>
                   {easyProgressPct >= 100 && (
-                    <Text style={styles.unlockedHint}>🔥 Medium difficulty unlocked!</Text>
+                    <Text style={styles.unlockedHint}> {<Ionicons name="fire" size={16} color="#FF6B6B" />} Medium difficulty unlocked!</Text>
                   )}
                 </View>
                 <Ionicons name="chevron-forward" size={24} color="#FF6B6B" />
@@ -118,7 +118,7 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Select Language</Text>
         {isLoading ? (
-          <ActivityIndicator size="large" color="#FF6B6B" style={{ marginVertical: 20 }} />
+          <ActivityIndicator size="large" color="#32435e" style={{ marginVertical: 20 }} />
         ) : (
           <FlatList
             data={languages}
@@ -172,7 +172,7 @@ function LanguageCard({ language, onPress }) {
   return (
     <TouchableOpacity style={styles.languageCard} onPress={onPress}>
       <LinearGradient
-        colors={['#FF6B6B', '#FF8E8E']}
+        colors={['#32435e', '#32435e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.languageGradient}
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   continueContent: { flex: 1 },
   continueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   continueLanguage: { fontSize: 16, fontWeight: '700', color: '#333' },
-  continuePct: { fontSize: 13, fontWeight: '700', color: '#FF6B6B' },
+  continuePct: { fontSize: 13, fontWeight: '700', color: '#32435e' },
   continueNext: { fontSize: 12, color: '#888', marginTop: 3, marginBottom: 6 },
   progressBar: {
     height: 6,
@@ -252,8 +252,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     overflow: 'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: '#FF6B6B', borderRadius: 3 },
-  unlockedHint: { fontSize: 12, color: '#FF6B6B', fontWeight: '600', marginTop: 4 },
+  progressFill: { height: '100%', backgroundColor: '#32435e', borderRadius: 3 },
+  unlockedHint: { fontSize: 12, color: '#32435e', fontWeight: '600', marginTop: 4 },
 
   languageCard: { marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
   languageGradient: {

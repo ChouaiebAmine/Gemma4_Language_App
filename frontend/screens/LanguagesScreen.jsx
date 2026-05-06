@@ -36,7 +36,7 @@ export default function LanguagesScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={['#725fb7', '#725fb7']} style={styles.header}>
+      <LinearGradient colors={['#32435e', '#32435e']} style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color="#fff" />
@@ -63,7 +63,7 @@ export default function LanguagesScreen({ navigation }) {
       ) : filteredLanguages.length > 0 ? (
         <FlatList
           data={filteredLanguages}
-          keyExtractor={(item) => item }
+          keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <LanguageItem
               language={item}
@@ -85,11 +85,11 @@ export default function LanguagesScreen({ navigation }) {
 
 function LanguageItem({ language, onPress }) {
   const colors = [
-    { start: '#FF6B6B', end: '#FF8E8E' },
-    { start: '#4ECDC4', end: '#45B9B0' },
-    { start: '#FFB6C1', end: '#FFA0B4' },
-    { start: '#87CEEB', end: '#6FB8DB' },
-    { start: '#FFD700', end: '#FFC700' },
+    { start: '#32435e', end: '#32435e' },
+    { start: '#d0b163', end: '#d0b163' },
+    { start: '#652d35', end: '#652d35' },
+    { start: '#ae8153', end: '#ae8153' },
+    { start: '#3d9f76', end: '#3d9f76' },
   ];
 
   const color = colors[Math.floor(Math.random() * colors.length)];

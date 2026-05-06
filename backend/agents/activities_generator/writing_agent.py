@@ -41,7 +41,7 @@ class MediumWriting(BaseModel):
 
 medium_writing_agent = Agent(
     model=model,
-    generate_content_config=types.GenerateContentConfig(temperature=temperature),
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
     name='medium_writing_agent',
     description='An agent useful for generating a writing activity for a language learning app',
     instruction="""Generate an essay question based on the following topic: {topic}.
@@ -50,4 +50,21 @@ medium_writing_agent = Agent(
     """,
     output_schema=MediumWriting,
     output_key="medium_writing"
+)
+
+class HardWriting(BaseModel):
+    essay_topic: str
+    question: str = Field(description="A specific question about the essay topic that requires a detailed answer")
+
+hard_writing_agent = Agent(
+    model = model,
+    generate_content_config=types.GenerateContentConfig(temperature=temperature,top_k=top_k,top_p=top_p),
+    name="hard_writing_agent",
+    description="An agent useful for generating a writing activity for a language learning app",
+    instruction="""Generate a detailed essay question based on the following topic: {topic}.
+The question should require a detailed answer that demonstrates deep understanding and the ability to express complex ideas in the target language: {target_language}.
+Respond only with a JSON object, no preamble, no markdown formatting. 
+""",
+    output_schema=HardWriting,
+    output_key="hard_writing"  
 )
