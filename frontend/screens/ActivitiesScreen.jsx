@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 18, fontWeight: '700', color: '#333' },
   emptyDesc: { fontSize: 14, color: '#999', marginTop: 8, marginBottom: 24 },
   generateButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#34435e',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,

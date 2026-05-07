@@ -65,7 +65,7 @@ For each task:
 
 Respond only with a JSON object, no preamble, no markdown formatting.
 """,
-    output_schema=MediumReading,
+    output_schema=MediumReading, 
     output_key="medium_reading",
 )
 

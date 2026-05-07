@@ -166,7 +166,7 @@ export const achievementsAPI = {
     api.post(`/achievements/${achievementId}/unlock`, { userId }),
 };
 
-// ─── Analytics API ───────────────────────────────────────────────────────────
+// ─── Analytics API 
 export const analyticsAPI = {
   getUserStats: (userId) => api.get(`/analytics/user/${userId}`),
   getProgress: (userId) => api.get(`/analytics/progress/${userId}`),
