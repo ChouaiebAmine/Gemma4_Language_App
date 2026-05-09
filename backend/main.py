@@ -1,4 +1,7 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from database import load_languages
 from routes.topics.topics import router as topic_router
 from routes.activities import router as activities_router
 from routes.evaluate import router as eval_router
@@ -11,7 +14,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic:
+    print("Server is starting...")
+    await load_languages() 
+    
+    yield  # The server runs while paused here
+    
+    # Shutdown logic:
+    print("Server is shutting down...")
+
+app = FastAPI(lifespan=lifespan)
+
 
 origins = [
     "http://localhost:3000",  # React Native default

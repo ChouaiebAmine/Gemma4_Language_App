@@ -1,4 +1,5 @@
 import os
+from fastapi import FastAPI
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
@@ -59,6 +60,14 @@ async def seed_languages():
     await languages_collection.delete_many({})
     result = await languages_collection.insert_many(sample_languages)
     print(f"Successfully added {len(result.inserted_ids)} languages to the database!")
+
+async def load_languages():
+    result = await languages_collection.find({}).to_list()
+    if len(result) == 0:
+        await seed_languages()
+
+
+
 
 if __name__ == "__main__":
     asyncio.run(seed_languages())
