@@ -141,12 +141,31 @@ export default function LearnScreen({ navigation, route }) {
   // ─── Handlers ────────────────────────────────────────────────────────────
   const handleAnswerChange = (text) => setAnswers({ ...answers, [currentQuestion]: text });
 
-  const handleSubmit = async () => {
-    const currentAnswer = answers[currentQuestion];
-    if (!currentAnswer || (typeof currentAnswer === 'string' && !currentAnswer.trim())) {
-      Alert.alert('Please provide an answer');
-      return;
-    }
+const handleSubmit = async () => {
+  const currentAnswer = answers[currentQuestion];
+  if (!currentAnswer || (typeof currentAnswer === 'string' && !currentAnswer.trim())) {
+    Alert.alert('Please provide an answer');
+    return;
+  }
+  const type = activity.type;
+  const diff = activity.difficulty || 0;
+  // ── Easy multi-step: defer evaluation until all questions are done ─────────
+  if (
+    (type === 'listening' && diff === 0) ||
+    (type === 'writing'   && diff === 0) ||
+    (type === 'reading'   && diff === 0)
+  ) {
+    setAllFeedback(prev => {
+      const entry = { question: currentQuestion, deferred: true, total_score: 0, feedback: '' };
+      const existingIdx = prev.findIndex(f => f.question === currentQuestion);
+      if (existingIdx >= 0) {
+        const next = [...prev]; next[existingIdx] = entry; return next;
+      }
+      return [...prev, entry];
+    });
+    setFeedback({ deferred: true, total_score: 0, feedback: '' });
+    return;
+  }
     
     setIsSubmitting(true);
     try {
@@ -232,14 +251,61 @@ export default function LearnScreen({ navigation, route }) {
   };
 
   const handleFinish = async () => {
-    // Ensure all questions are answered before considering it complete
-    if (allFeedback.length < questions.length) {
-      Alert.alert(
-        'Activity Incomplete',
-        `You've only answered ${allFeedback.length} out of ${questions.length} questions. Please complete all of them to see your results.`,
-        [{ text: 'OK' }]
-      );
-      return;
+    const type  = activity.type;
+    const diff  = activity.difficulty || 0;
+
+    const isEasyMultiStep =
+      (type === 'listening' && diff === 0) ||
+      (type === 'writing'   && diff === 0) ||
+      (type === 'reading'   && diff === 0);
+
+    if (isEasyMultiStep) {
+      const answeredCount = Object.keys(answers).length;
+      if (answeredCount < questions.length) {
+        Alert.alert(
+          'Activity Incomplete',
+          `You've only answered ${answeredCount} out of ${questions.length} questions. Please complete all of them.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const userId             = user?.id || 'user';
+        const activityId         = activity._id || activity.id;
+        const paddedAnswersArray = questions.map((_, i) => answers[i] || '');
+
+        let raw;
+        if (type === 'listening') raw = await evaluateAPI.evaluateListeningEasy(activityId, paddedAnswersArray, userId);
+        else if (type === 'writing') raw = await evaluateAPI.evaluateWritingEasy(activityId, paddedAnswersArray, userId);
+        else if (type === 'reading') raw = await evaluateAPI.evaluateReadingEasy(activityId, paddedAnswersArray, userId);
+
+        const fullFeedback = questions.map((_, i) => ({
+          question:    i,
+          total_score: raw.results?.[i]?.correct ? 1 : 0,
+          feedback:    raw.results?.[i]?.feedback || '',
+          ...(raw.results?.[i] || {}),
+        }));
+        setAllFeedback(fullFeedback);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message || 'Connection error';
+        Alert.alert('Evaluation Failed', msg);
+        setIsSubmitting(false);
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // All other types: original incomplete-guard
+      if (allFeedback.length < questions.length) {
+        Alert.alert(
+          'Activity Incomplete',
+          `You've only answered ${allFeedback.length} out of ${questions.length} questions. Please complete all of them to see your results.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
     }
 
     if (selectedLanguage) {
@@ -610,21 +676,28 @@ export default function LearnScreen({ navigation, route }) {
 
           {/* Per-question feedback */}
           {feedback && (
-            <View style={[styles.feedbackBox, feedback.total_score > 0 ? styles.correctBox : styles.incorrectBox]}>
-              <Text style={styles.feedbackTitle}>
-                {feedback.total_score > 0 ? '✓ Correct!' : '✗ Not quite'}
-              </Text>
-              <Text style={styles.feedbackText}>{feedback.feedback}</Text>
-              {feedback.results?.length > 0 && (
-                <View style={styles.resultsContainer}>
-                  {feedback.results.map((result, idx) => (
-                    <Text key={idx} style={styles.resultText}>
-                      {result.correct_word || result.word}: {result.user_answer}
-                    </Text>
-                  ))}
-                </View>
-              )}
-            </View>
+            feedback.deferred ? (
+              <View style={[styles.feedbackBox, { backgroundColor: '#EEF2FF', borderLeftWidth: 4, borderLeftColor: '#7C83FD' }]}>
+                <Text style={styles.feedbackTitle}>📝 Answer recorded</Text>
+                <Text style={styles.feedbackText}>Keep going — you'll see your score at the end!</Text>
+              </View>
+            ) : (
+              <View style={[styles.feedbackBox, feedback.total_score > 0 ? styles.correctBox : styles.incorrectBox]}>
+                <Text style={styles.feedbackTitle}>
+                  {feedback.total_score > 0 ? '✓ Correct!' : '✗ Not quite'}
+                </Text>
+                <Text style={styles.feedbackText}>{feedback.feedback}</Text>
+                {feedback.results?.length > 0 && (
+                  <View style={styles.resultsContainer}>
+                    {feedback.results.map((result, idx) => (
+                      <Text key={idx} style={styles.resultText}>
+                        {result.correct_word || result.word}: {result.user_answer}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )
           )}
         </View>
       </ScrollView>
