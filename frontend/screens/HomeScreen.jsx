@@ -135,7 +135,7 @@ export default function HomeScreen({ navigation }) {
           <ActivityIndicator size="large" color="#32435e" style={{ marginVertical: 20 }} />
         ) : (
           <FlatList
-            data={languages}
+            data={languages.filter(lang => (lang.native_speakers || 0) >= 100000).slice(0,5)} // limit to top 5 most spoke languages
             keyExtractor={(item) => item._id || item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
