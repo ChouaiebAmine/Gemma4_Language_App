@@ -28,9 +28,9 @@ export default function LanguagesScreen({ navigation }) {
     setFilteredLanguages(filtered);
   }, [search, languages]);
 
-  const handleSelectLanguage = async (languageId) => {
-    await selectLanguage(languageId);
-    navigation.goBack();
+  const handleSelectLanguage = async (language) => {
+    await selectLanguage(language);
+    navigation.navigate('Topics');
   };
 
   return (
@@ -67,7 +67,7 @@ export default function LanguagesScreen({ navigation }) {
           renderItem={({ item }) => (
             <LanguageItem
               language={item}
-              onPress={() => handleSelectLanguage(item )}
+              onPress={() => handleSelectLanguage(item )} //
             />
           )}
           contentContainerStyle={styles.listContent}

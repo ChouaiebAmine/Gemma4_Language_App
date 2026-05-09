@@ -76,13 +76,15 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Continue Learning — shows ALL enrolled languages */}
-      {enrolledLanguages.length > 0 && (
+      {enrolledLanguages.filter(lang => (languageProgress[lang._id || lang.id]?.pct || 0) > 0).length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Continue Learning</Text>
-          {enrolledLanguages.map((lang) => {
-            const langId = lang._id || lang.id;
-            const progress = languageProgress[langId] || { pct: 0, nextLevels: [] };
-            const pct = progress.pct || 0;
+          {enrolledLanguages
+            .filter(lang => (languageProgress[lang._id || lang.id]?.pct || 0) > 0) // Filters out 0% progress
+            .map((lang) => {
+              const langId = lang._id || lang.id;
+              const progress = languageProgress[langId] || { pct: 0, nextLevels: [] };
+              const pct = progress.pct || 0;
 
             return (
               <TouchableOpacity
