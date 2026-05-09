@@ -153,8 +153,7 @@ export default function LearnScreen({ navigation, route }) {
       const userId = user?.id || 'user';
       const activityId = activity._id || activity.id;
       
-      // ✅ FIX: Construct padded answers array with all questions answered
-      // Each position contains the answer for that question, or empty string if unanswered
+      
       const updatedAnswers = { ...answers, [currentQuestion]: currentAnswer };
       const paddedAnswersArray = questions.map((_, i) => updatedAnswers[i] || "");
       
@@ -341,7 +340,6 @@ export default function LearnScreen({ navigation, route }) {
             </View>
           ))}
 
-          {/* Topic progress indicator */}
           {topicId && (
             <View style={styles.topicProgressBox}>
               <Text style={styles.topicProgressTitle}>
