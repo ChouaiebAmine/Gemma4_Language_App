@@ -81,6 +81,8 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Continue Learning</Text>
           {enrolledLanguages.map((lang) => {
             const langId = lang._id || lang.id;
+            const progress = languageProgress[langId] || { pct: 0, nextLevels: [] };
+            const pct = progress.pct || 0;
 
             return (
               <TouchableOpacity
@@ -91,20 +93,30 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.continueContent}>
                   <View style={styles.continueHeader}>
                     <Text style={styles.continueLanguage}>{lang.name}</Text>
-                    <Text style={styles.continuePct}>{easyProgressPct}%</Text>
+                    <Text style={styles.continuePct}>{pct}%</Text>
                   </View>
                   <Text style={styles.continueNext}>
-                    {easyProgressPct >= 100
-                      ? ' All Easy topics completed!'
-                      : easyProgressPct > 0
-                      ? ` Easy topics: ${easyProgressPct}% complete`
-                      : 'Start your first activity!'}
+                    {pct >= 100
+                      ? ' Mastery achieved! All levels completed.'
+                      : pct > 0
+                      ? ` Overall progress: ${pct}% complete`
+                      : 'Start your learning journey!'}
                   </Text>
                   <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${easyProgressPct}%` }]} />
+                    <View style={[styles.progressFill, { width: `${pct}%` }]} />
                   </View>
-                  {easyProgressPct >= 100 && (
-                    <Text style={styles.unlockedHint}> {<Ionicons name="fire" size={16} color="#FF6B6B" />} Medium difficulty unlocked!</Text>
+                  {progress.nextLevels?.length > 0 && (
+                    <View style={styles.nextLevelsRow}>
+                      {progress.nextLevels.slice(0, 2).map((nl, i) => (
+                        <View key={i} style={styles.nextLevelChip}>
+                          <MaterialCommunityIcons 
+                            name={nl.type === 'listening' ? 'headphones' : nl.type === 'writing' ? 'pencil' : 'book'} 
+                            size={10} color="#32435e" 
+                          />
+                          <Text style={styles.nextLevelText}>{nl.label}</Text>
+                        </View>
+                      ))}
+                    </View>
                   )}
                 </View>
                 <Ionicons name="chevron-forward" size={24} color="#FF6B6B" />
@@ -254,6 +266,17 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', backgroundColor: '#32435e', borderRadius: 3 },
   unlockedHint: { fontSize: 12, color: '#32435e', fontWeight: '600', marginTop: 4 },
+  nextLevelsRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
+  nextLevelChip: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 4, 
+    backgroundColor: 'rgba(50, 67, 94, 0.1)', 
+    paddingHorizontal: 8, 
+    paddingVertical: 3, 
+    borderRadius: 6 
+  },
+  nextLevelText: { fontSize: 10, fontWeight: '700', color: '#32435e' },
 
   languageCard: { marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
   languageGradient: {

@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
-import { evaluateAPI, recommendationAPI } from '../services/apiService';
+import { evaluateAPI } from '../services/apiService';
 import * as Speech from 'expo-speech';
 
 const LANGUAGE_CODES = {
@@ -45,7 +45,6 @@ export default function LearnScreen({ navigation, route }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [allFeedback, setAllFeedback] = useState([]); // accumulate per-question feedback
-  const [recommendation, setRecommendation] = useState(null);
 
   const targetLanguage = useMemo(() => {
     const lang = activity?.target_language?.toLowerCase() || 'fr';
@@ -221,13 +220,10 @@ export default function LearnScreen({ navigation, route }) {
   };
 
   const handleFinish = async () => {
-    // Ensure all questions are answered before considering it complete
-    if (allFeedback.length < questions.length) {
-      Alert.alert(
-        'Activity Incomplete',
-        `You've only answered ${allFeedback.length} out of ${questions.length} questions. Please complete all of them to see your results.`,
-        [{ text: 'OK' }]
-      );
+    // Only refresh progress and show results if we actually have feedback for questions
+    // This prevents "False Completion" if a user just navigates to results without answering
+    if (allFeedback.length === 0) {
+      navigation.navigate('HomeMain');
       return;
     }
 
@@ -243,28 +239,13 @@ export default function LearnScreen({ navigation, route }) {
         console.warn('Failed to refresh progress on finish:', err);
       }
     }
-
-    // Fetch recommendation
-    try {
-      const userId = user?.id || 'user';
-      const userLang = 'English'; 
-      const targetLang = selectedLanguage?.name || 'Spanish';
-      
-      recommendationAPI.getNext(userId, userLang, targetLang)
-        .then(res => setRecommendation(res))
-        .catch(err => console.warn('Recommendation error:', err));
-    } catch (err) {
-      console.warn('Failed to fetch recommendation:', err);
-    }
-
     setShowResults(true);
   };
 
   // ─── Result screen ────────────────────────────────────────────────────────
   if (showResults) {
     const totalScore = allFeedback.reduce((sum, f) => sum + (f.total_score || 0), 0);
-    // If total_score is 1 per correct answer, we multiply by 100 and divide by total questions
-    const avgScore = questions.length > 0 ? Math.round((totalScore / questions.length) * 100) : 0;
+    const avgScore = allFeedback.length > 0 ? Math.round(totalScore / allFeedback.length) : 0;
     const passed = avgScore >= 50;
 
     // Find activities of the same topic + same difficulty but different types
@@ -397,17 +378,10 @@ export default function LearnScreen({ navigation, route }) {
             </>
           )}
 
-          {/* If all done for this level, show recommendation or fallback message */}
+          {/* If all done for this level */}
           {allDone && (
             <View style={styles.allDoneBox}>
-              {recommendation ? (
-                <>
-                  <Text style={[styles.sectionLabel, { marginTop: 0, color: '#e67e22' }]}>AI Recommendation</Text>
-                  <Text style={styles.allDoneText}>{recommendation.reasoning}</Text>
-                </>
-              ) : (
-                <Text style={styles.allDoneText}> You've completed all activities for this topic at {DIFFICULTY_LABELS[difficulty]} level!</Text>
-              )}
+              <Text style={styles.allDoneText}> You've completed all activities for this topic at {DIFFICULTY_LABELS[difficulty]} level!</Text>
             </View>
           )}
 
