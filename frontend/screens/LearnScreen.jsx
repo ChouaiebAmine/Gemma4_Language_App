@@ -39,7 +39,7 @@ export default function LearnScreen({ navigation, route }) {
   const { user } = useUser();
 
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -153,8 +153,10 @@ export default function LearnScreen({ navigation, route }) {
       const userId = user?.id || 'user';
       const activityId = activity._id || activity.id;
       
-      // Optimization: construct padded answers only if needed by the specific endpoint
-      const getPadded = () => questions.map((_, i) => i === currentQuestion ? currentAnswer : '');
+      // ✅ FIX: Construct padded answers array with all questions answered
+      // Each position contains the answer for that question, or empty string if unanswered
+      const updatedAnswers = { ...answers, [currentQuestion]: currentAnswer };
+      const paddedAnswersArray = questions.map((_, i) => updatedAnswers[i] || "");
       
       let response;
       const type = activity.type;
@@ -162,32 +164,41 @@ export default function LearnScreen({ navigation, route }) {
 
       if (type === 'listening') {
         if (diff === 0) {
-          const raw = await evaluateAPI.evaluateListeningEasy(activityId, getPadded(), userId);
+          // Easy: multiple choice questions - send array of all answers
+          const raw = await evaluateAPI.evaluateListeningEasy(activityId, paddedAnswersArray, userId);
           response = { ...raw, results: raw.results ? [raw.results[currentQuestion]] : raw.results };
         } else if (diff === 1) {
+          // Medium: transcription - send current answer only
           response = await evaluateAPI.evaluateListeningMedium(activityId, currentAnswer, userId);
         } else {
-          const raw = await evaluateAPI.evaluateListeningHard(activityId, getPadded(), userId);
+          // Hard: comprehension questions - send array of all answers
+          const raw = await evaluateAPI.evaluateListeningHard(activityId, paddedAnswersArray, userId);
           response = { ...raw, results: raw.results ? [raw.results[currentQuestion]] : raw.results };
         }
       } else if (type === 'writing') {
         if (diff === 0) {
-          const raw = await evaluateAPI.evaluateWritingEasy(activityId, getPadded(), userId);
+          // Easy: fill-in-the-blank - send array of all answers
+          const raw = await evaluateAPI.evaluateWritingEasy(activityId, paddedAnswersArray, userId);
           response = { ...raw, results: raw.results ? [raw.results[currentQuestion]] : raw.results };
         } else if (diff === 1) {
+          // Medium: essay - send current answer only
           response = await evaluateAPI.evaluateWritingMedium(activityId, currentAnswer, userId);
         } else if (diff === 2) {
+          // Hard: essay - send current answer only
           response = await evaluateAPI.evaluateWritingHard(activityId, currentAnswer, userId);
         }
       } else if (type === 'reading') {
         if (diff === 0) {
-          const raw = await evaluateAPI.evaluateReadingEasy(activityId, getPadded(), userId);
+          // Easy: vocabulary matching - send array of all answers
+          const raw = await evaluateAPI.evaluateReadingEasy(activityId, paddedAnswersArray, userId);
           response = { ...raw, results: raw.results ? [raw.results[currentQuestion]] : raw.results };
         } else if (diff === 1) {
-          const raw = await evaluateAPI.evaluateReadingMedium(activityId, getPadded(), userId);
+          // Medium: word selection - send array of all answers
+          const raw = await evaluateAPI.evaluateReadingMedium(activityId, paddedAnswersArray, userId);
           response = { ...raw, results: raw.results ? [raw.results[currentQuestion]] : raw.results };
         } else {
-          const raw = await evaluateAPI.evaluateReadingHard(activityId, getPadded(), userId);
+          // Hard: comprehension - send array of all answers
+          const raw = await evaluateAPI.evaluateReadingHard(activityId, paddedAnswersArray, userId);
           response = { ...raw, results: raw.results ? [raw.results[currentQuestion]] : raw.results };
         }
       }
@@ -245,17 +256,21 @@ export default function LearnScreen({ navigation, route }) {
     }
 
     // Fetch recommendation
-    try {
-      const userId = user?.id || 'user';
-      const userLang = 'English'; 
-      const targetLang = selectedLanguage?.name || 'Spanish';
-      
-      recommendationAPI.getNext(userId, userLang, targetLang)
-        .then(res => setRecommendation(res))
-        .catch(err => console.warn('Recommendation error:', err));
-    } catch (err) {
-      console.warn('Failed to fetch recommendation:', err);
-    }
+    const fetchRecommendation = async () => {
+      try {
+        const userId = user?.id || 'user';
+        const userLang = 'English'; 
+        const targetLang = selectedLanguage?.name || 'Spanish';
+        
+        const res = await recommendationAPI.getNext(userId, userLang, targetLang);
+        if (res) {
+          setRecommendation(res);
+        }
+      } catch (err) {
+        console.warn('Recommendation error:', err);
+      }
+    };
+    fetchRecommendation();
 
     setShowResults(true);
   };
@@ -286,7 +301,7 @@ export default function LearnScreen({ navigation, route }) {
     // Also figure out completion for this topic
     const topicCompletion = topicProgress[topicId] || {};
     const typesDone = topicCompletion[`${DIFFICULTY_LABELS[difficulty].toLowerCase()}_types_done`] || [];
-    const allDone = ['listening', 'writing', 'reading'].every(t => typesDone.includes(t));
+    const allDone = ['listening', 'writing', 'reading'].every(t => typesDone.includes(t) || t === doneType);
 
     return (
       <View style={styles.container}>
@@ -398,18 +413,18 @@ export default function LearnScreen({ navigation, route }) {
           )}
 
           {/* If all done for this level, show recommendation or fallback message */}
-          {allDone && (
-            <View style={styles.allDoneBox}>
-              {recommendation ? (
-                <>
-                  <Text style={[styles.sectionLabel, { marginTop: 0, color: '#e67e22' }]}>AI Recommendation</Text>
-                  <Text style={styles.allDoneText}>{recommendation.reasoning}</Text>
-                </>
-              ) : (
-                <Text style={styles.allDoneText}> You've completed all activities for this topic at {DIFFICULTY_LABELS[difficulty]} level!</Text>
-              )}
-            </View>
-          )}
+          <View style={styles.allDoneBox}>
+            {recommendation ? (
+              <>
+                <Text style={[styles.sectionLabel, { marginTop: 0, color: '#e67e22' }]}>AI Recommendation</Text>
+                <Text style={styles.allDoneText}>{recommendation.reasoning}</Text>
+              </>
+            ) : allDone ? (
+              <Text style={styles.allDoneText}> You've completed all activities for this topic at {DIFFICULTY_LABELS[difficulty]} level!</Text>
+            ) : (
+              <Text style={styles.allDoneText}>Complete all activity types (Listening, Writing, Reading) to get an AI recommendation!</Text>
+            )}
+          </View>
 
           <View style={styles.resultActions}>
             <TouchableOpacity
