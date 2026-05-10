@@ -70,9 +70,9 @@ export default function HomeScreen({ navigation }) {
 
       {/* Quick Stats */}
       <View style={styles.quickStats}>
-        <QuickStat icon="book" title="Lessons Completed" value={stats?.lessons_completed || 0} />
-        <QuickStat icon="checkmark-circle" title="Correct Answers" value={stats?.correct_answers || 0} />
-        <QuickStat icon="time" title="Minutes Learned" value={stats?.learning_time || 0} />
+        <QuickStat icon="" title="Lessons Completed" value={stats?.lessons_completed || 0} />
+        <QuickStat icon="" title="Correct Answers" value={stats?.correct_answers || 0} />
+        <QuickStat icon="" title="Minutes Learned" value={stats?.learning_time || 0} />
       </View>
 
       {/* Continue Learning — shows ALL enrolled languages */}
@@ -175,9 +175,7 @@ function StatBadge({ icon, value, label }) {
 function QuickStat({ icon, title, value }) {
   return (
     <View style={styles.quickStatCard}>
-      <View style={styles.quickStatIconContainer}>
-        <MaterialCommunityIcons name={icon} size={24} color="#FF6B6B" />
-      </View>
+      <Text style={styles.quickStatIcon}>{icon}</Text>
       <Text style={styles.quickStatTitle}>{title}</Text>
       <Text style={styles.quickStatValue}>{value}</Text>
     </View>
@@ -240,15 +238,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
-  },
-  quickStatIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
   },
   quickStatIcon: { fontSize: 28, marginBottom: 4 },
   quickStatTitle: { fontSize: 11, color: '#999', textAlign: 'center' },

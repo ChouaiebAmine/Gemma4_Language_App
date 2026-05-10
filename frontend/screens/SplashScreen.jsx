@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUser } from '../context/UserContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SplashScreen({ navigation }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -50,9 +51,9 @@ export default function SplashScreen({ navigation }) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.container}>
-        <LinearGradient colors={['#FF6B6B', '#FF8E8E']} style={styles.header}>
-          <Text style={styles.appTitle}>Gemma App</Text>
-          <Text style={styles.subtitle}>Master Local Languages</Text>
+        <LinearGradient colors={['#32435e', '#32435e']} style={styles.header}>
+          <Text style={styles.appTitle}>SmartLingo</Text>
+          <Text style={styles.subtitle}>Master Languages In Real Life Scenarios</Text>
         </LinearGradient>
 
         <View style={styles.content}>
@@ -98,7 +99,7 @@ export default function SplashScreen({ navigation }) {
             onPress={handleSubmit}
             disabled={loading}
           >
-            <LinearGradient colors={['#FF6B6B', '#FF8E8E']} style={styles.buttonGradient}>
+            <LinearGradient colors={['#32435e', '#32435e']} style={styles.buttonGradient}>
               <Text style={styles.buttonText}>
                 {loading ? 'Loading...' : isLogin ? 'Login' : 'Sign Up'}
               </Text>
@@ -112,9 +113,9 @@ export default function SplashScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.features}>
-            <FeatureItem icon="🎯" title="Interactive Learning" desc="Engage with fun activities" />
-            <FeatureItem icon="🏆" title="Track Progress" desc="See your improvement" />
-            <FeatureItem icon="🌍" title="Local Languages" desc="Learn authentic languages" />
+            <FeatureItem icon={<Ionicons name="play-circle" size={32} color="#32435e" />} title="Interactive Learning" desc="Engage with fun activities" />
+            <FeatureItem icon={<Ionicons name="trophy" size={32} color="#b7a16a" />} title="Track Progress" desc="See your improvement" />
+            <FeatureItem icon={<Ionicons name="globe" size={32} color="#40654e" />} title="Local Languages" desc="Learn authentic languages" />
           </View>
         </View>
       </ScrollView>
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
   },
   switchText: {
     textAlign: 'center',
-    color: '#FF6B6B',
+    color: '#32435e',
     marginTop: 16,
     fontWeight: '600',
   },
