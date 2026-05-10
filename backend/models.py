@@ -44,3 +44,23 @@ class AchievementSubmitModel(BaseModel):
     user_id: str
     data: Dict[str, Any]
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class UserRegisterModel(BaseModel):
+    email: str
+    password: str
+    name: str
+
+
+class UserLoginModel(BaseModel):
+    email: str
+    password: str
+
+
+class UserModel(BaseModel):
+    id: Optional[str] = Field(alias="_id", default=None)
+    email: str
+    password: str  # In a real app, this should be hashed
+    name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    enrolled_languages: List[str] = []
