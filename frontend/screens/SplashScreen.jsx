@@ -30,6 +30,7 @@ export default function SplashScreen({ navigation }) {
 
     setLoading(true);
     try {
+      let result;
       if (isLogin) {
         await login(email, password);
       } else {
@@ -38,7 +39,10 @@ export default function SplashScreen({ navigation }) {
           setLoading(false);
           return;
         }
-        await register(email, password, name);
+        result =await register(email, password, name);
+      }
+      if (result){
+        navigation.navigate("HomeMain")
       }
       // Navigation happens automatically after auth success
     } catch (error) {
