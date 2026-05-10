@@ -1,7 +1,5 @@
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
 from database import load_languages
 from routes.topics.topics import router as topic_router
 from routes.activities import router as activities_router
@@ -23,10 +21,6 @@ async def lifespan(app: FastAPI):
     print("Server is starting...")
     await load_languages() 
     
-    yield 
-    
-    print("Server is shutting down...")
-app = FastAPI(lifespan=lifespan)
     yield  # The server runs while paused here
     
     # Shutdown logic:

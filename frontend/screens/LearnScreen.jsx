@@ -166,11 +166,14 @@ const handleSubmit = async () => {
   }
   const type = activity.type;
   const diff = activity.difficulty || 0;
-  // ── Easy multi-step: defer evaluation until all questions are done ─────────
   if (
     (type === 'listening' && diff === 0) ||
     (type === 'writing'   && diff === 0) ||
-    (type === 'reading'   && diff === 0)
+    (type === 'reading'   && diff === 0) ||
+    (type === 'reading'   && diff === 1) ||
+    (type === 'writing'   && diff === 1) ||  // medium writing (essay)
+    (type === 'listening' && diff === 2) ||  // listening hard
+    (type === 'reading'   && diff === 2)     // reading hard
   ) {
     setAllFeedback(prev => {
       const entry = { question: currentQuestion, deferred: true, total_score: 0, feedback: '' };
@@ -182,7 +185,7 @@ const handleSubmit = async () => {
     });
     setFeedback({ deferred: true, total_score: 0, feedback: '' });
     return;
-  }
+}
     
     setIsSubmitting(true);
     try {
@@ -271,12 +274,16 @@ const handleSubmit = async () => {
     const type  = activity.type;
     const diff  = activity.difficulty || 0;
 
-    const isEasyMultiStep =
+    const isDeferredActivity =
       (type === 'listening' && diff === 0) ||
       (type === 'writing'   && diff === 0) ||
-      (type === 'reading'   && diff === 0);
+      (type === 'reading'   && diff === 0) ||
+      (type === 'reading'   && diff === 1) ||
+      (type === 'writing'   && diff === 1) ||
+      (type === 'listening' && diff === 2) ||
+      (type === 'reading'   && diff === 2);
 
-    if (isEasyMultiStep) {
+    if (isDeferredActivity) {
       const answeredCount = Object.keys(answers).length;
       if (answeredCount < questions.length) {
         Alert.alert(
@@ -294,15 +301,22 @@ const handleSubmit = async () => {
         const paddedAnswersArray = questions.map((_, i) => answers[i] || '');
 
         let raw;
-        if (type === 'listening') raw = await evaluateAPI.evaluateListeningEasy(activityId, paddedAnswersArray, userId);
-        else if (type === 'writing') raw = await evaluateAPI.evaluateWritingEasy(activityId, paddedAnswersArray, userId);
-        else if (type === 'reading') raw = await evaluateAPI.evaluateReadingEasy(activityId, paddedAnswersArray, userId);
+        if      (type === 'listening' && diff === 0) raw = await evaluateAPI.evaluateListeningEasy(activityId, paddedAnswersArray, userId);
+        else if (type === 'writing'   && diff === 0) raw = await evaluateAPI.evaluateWritingEasy(activityId, paddedAnswersArray, userId);
+        else if (type === 'reading'   && diff === 0) raw = await evaluateAPI.evaluateReadingEasy(activityId, paddedAnswersArray, userId);
+        else if (type === 'writing'   && diff === 1) raw = await evaluateAPI.evaluateWritingMedium(activityId, answers[0] || '', userId);
+        else if (type === 'reading' && diff === 1) raw = await evaluateAPI.evaluateReadingMedium(activityId, paddedAnswersArray, userId);
+        else if (type === 'listening' && diff === 2) raw = await evaluateAPI.evaluateListeningHard(activityId, paddedAnswersArray, userId);
+        else if (type === 'reading'   && diff === 2) raw = await evaluateAPI.evaluateReadingHard(activityId, paddedAnswersArray, userId);
+
+        // Writing medium returns a single result object, not a results array — normalize it
+        const results = raw.results ?? [raw];
 
         const fullFeedback = questions.map((_, i) => ({
           question:    i,
-          total_score: raw.results?.[i]?.correct ? 1 : 0,
-          feedback:    raw.results?.[i]?.feedback || '',
-          ...(raw.results?.[i] || {}),
+          total_score: results[i]?.correct ? 1 : (results[i]?.total_score ?? 0),
+          feedback:    results[i]?.feedback || '',
+          ...(results[i] || {}),
         }));
         setAllFeedback(fullFeedback);
       } catch (error) {
@@ -314,7 +328,7 @@ const handleSubmit = async () => {
         setIsSubmitting(false);
       }
     } else {
-      // All other types: original incomplete-guard
+      // Remaining types (listening medium, writing hard): already evaluated per-question
       if (allFeedback.length < questions.length) {
         Alert.alert(
           'Activity Incomplete',
