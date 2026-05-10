@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { storage } from '../utils/storageUtil';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -10,7 +11,7 @@ const getToken = async () => {
     if (Platform.OS === 'web') {
       return localStorage.getItem('userToken');
     }
-    return await SecureStore.getItemAsync('userToken');
+    return await storage.getItemAsync('userToken');
   } catch {
     return null;
   }

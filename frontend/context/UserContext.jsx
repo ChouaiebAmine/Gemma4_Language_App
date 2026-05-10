@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { authAPI, analyticsAPI } from '../services/apiService';
+import { storage } from '../utils/storageUtil';
 
 const UserContext = createContext();
 
@@ -15,13 +16,15 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const bootstrapAsync = async () => {
       try {
-        const token = await SecureStore.getItemAsync('userToken');
-        if (token) {
+        const token = await storage.getItemAsync('userToken');
+        const storedUser = await storage.getItemAsync('userData');
+        
+        if (token && storedUser) {
           setUserToken(token);
-          // You can fetch user data here if needed
+          setUser(JSON.parse(storedUser));
         }
       } catch (e) {
-        console.error('Failed to restore token', e);
+        console.error('Failed to restore session', e);
       } finally {
         setIsLoading(false);
       }
@@ -57,14 +60,14 @@ export const UserProvider = ({ children }) => {
   // Login
   const login = useCallback(async (email, password) => {
     try {
-      setIsLoading(true);
       setError(null);
       
       const response = await authAPI.login(email, password);
       const userData = response.data || response;
       
       if (userData.token) {
-        await SecureStore.setItemAsync('userToken', userData.token);
+        await storage.setItemAsync('userToken', userData.token);
+        await storage.setItemAsync('userData', JSON.stringify(userData.user || userData));
         setUserToken(userData.token);
       }
       
@@ -82,21 +85,20 @@ export const UserProvider = ({ children }) => {
       console.error('Login error:', err);
       return null;
     } finally {
-      setIsLoading(false);
     }
   }, [getStats]);
 
   // Register
   const register = useCallback(async (email, password, name) => {
     try {
-      setIsLoading(true);
       setError(null);
       
       const response = await authAPI.register(email, password, name);
       const userData = response.data || response;
       
       if (userData.token) {
-        await SecureStore.setItemAsync('userToken', userData.token);
+        await storage.setItemAsync('userToken', userData.token);
+        await storage.setItemAsync('userData', JSON.stringify(userData.user || userData)); // missing!
         setUserToken(userData.token);
       }
       
@@ -108,7 +110,6 @@ export const UserProvider = ({ children }) => {
       console.error('Registration error:', err);
       return null;
     } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -116,7 +117,8 @@ export const UserProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       await authAPI.logout();
-      await SecureStore.deleteItemAsync('userToken');
+      await storage.deleteItemAsync('userToken');
+      await storage.deleteItemAsync('userData');
       setUserToken(null);
       setUser(null);
       setStats(null);
@@ -128,7 +130,7 @@ export const UserProvider = ({ children }) => {
   // Check auth status
   const checkAuth = useCallback(async () => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
+      const token = await storage.getItemAsync('userToken');
       return !!token;
     } catch (err) {
       console.error('Auth check error:', err);
