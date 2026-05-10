@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-
+from passlib.context import CryptContext
 
 class TopicModel(BaseModel):
     topics_base: List[str]
@@ -56,11 +56,21 @@ class UserLoginModel(BaseModel):
     email: str
     password: str
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+class HashHelper:
+    @staticmethod
+    def verify_password(plain_password, hashed_password):
+        return pwd_context.verify(plain_password, hashed_password)
+
+    @staticmethod
+    def get_password_hash(password):
+        return pwd_context.hash(password)
 class UserModel(BaseModel):
+    # map MongoDB's _id to id
     id: Optional[str] = Field(alias="_id", default=None)
     email: str
-    password: str  # In a real app, this should be hashed
+    password: str  
     name: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     enrolled_languages: List[str] = []
