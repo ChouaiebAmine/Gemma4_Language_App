@@ -87,12 +87,12 @@ export const UserProvider = ({ children }) => {
   }, [getStats]);
 
   // Register
-  const register = useCallback(async (email, password, name, nativeLanguage = 'English') => {
+  const register = useCallback(async (email, password, name) => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const response = await authAPI.register(email, password, name, nativeLanguage);
+      const response = await authAPI.register(email, password, name);
       const userData = response.data || response;
       
       if (userData.token) {
@@ -102,12 +102,6 @@ export const UserProvider = ({ children }) => {
       
       setUser(userData.user || userData);
       
-      // Fetch user stats after registration
-      if (userData.user?.id || userData.id) {
-        const userId = userData.user?.id || userData.id;
-        await getStats(userId);
-      }
-      
       return userData;
     } catch (err) {
       setError(err.message);
@@ -116,7 +110,7 @@ export const UserProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [getStats]);
+  }, []);
 
   // Logout
   const logout = useCallback(async () => {

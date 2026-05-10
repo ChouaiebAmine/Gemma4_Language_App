@@ -147,7 +147,7 @@ export const LanguageProvider = ({ children }) => {
         return alreadyIn ? prev : [...prev, lang];
       });
 
-      const userMotherLanguage = user?.native_language?.toLowerCase() || 'english';
+      const userMotherLanguage = user?.native_language || 'english';
       const targetLanguageName = lang.name || 'spanish';
 
       const topicsResponse = await topicsAPI.getByLanguage(
@@ -176,7 +176,7 @@ export const LanguageProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
 
-      const userMotherLanguage = user?.native_language?.toLowerCase() || 'english';
+      const userMotherLanguage = user?.native_language || 'english';
       const targetLanguageName = selectedLanguage?.name || 'spanish';
 
       const response = await topicsAPI.getByLanguage(

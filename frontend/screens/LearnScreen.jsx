@@ -14,12 +14,29 @@ import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import { evaluateAPI, recommendationAPI } from '../services/apiService';
 import * as Speech from 'expo-speech';
-
+  
 const LANGUAGE_CODES = {
-  'japanese': 'ja-JP', 'arabic': 'ar-SA', 'german': 'de-DE',
-  'italian': 'it-IT', 'french': 'fr-FR', 'spanish': 'es-ES',
-  'portuguese': 'pt-PT', 'chinese': 'zh-CN', 'korean': 'ko-KR',
-  'russian': 'ru-RU', 'dutch': 'nl-NL', 'turkish': 'tr-TR',
+  'spanish': 'es-ES',
+  'french': 'fr-FR',
+  'german': 'de-DE',
+  'japanese': 'ja-JP',
+  'italian': 'it-IT',
+  'english': 'en-US',
+  'mandarin chinese': 'zh-CN',
+  'chinese': 'zh-CN',
+  'arabic': 'ar-SA',
+  'hindi': 'hi-IN',
+  'portuguese': 'pt-PT',
+  'russian': 'ru-RU',
+  'korean': 'ko-KR',
+  'turkish': 'tr-TR',
+  'vietnamese': 'vi-VN',
+  'dutch': 'nl-NL',
+  'swedish': 'sv-SE',
+  'greek': 'el-GR',
+  'polish': 'pl-PL',
+  'indonesian': 'id-ID',
+  'bengali': 'bn-BD',
 };
 
 const TYPE_CONFIG = {
@@ -141,19 +158,40 @@ export default function LearnScreen({ navigation, route }) {
   // ─── Handlers ────────────────────────────────────────────────────────────
   const handleAnswerChange = (text) => setAnswers({ ...answers, [currentQuestion]: text });
 
-  const handleSubmit = async () => {
-    const currentAnswer = answers[currentQuestion];
-    if (!currentAnswer || (typeof currentAnswer === 'string' && !currentAnswer.trim())) {
-      Alert.alert('Please provide an answer');
-      return;
-    }
+const handleSubmit = async () => {
+  const currentAnswer = answers[currentQuestion];
+  if (!currentAnswer || (typeof currentAnswer === 'string' && !currentAnswer.trim())) {
+    Alert.alert('Please provide an answer');
+    return;
+  }
+
+  // ── Listening Easy: defer evaluation until all questions are done ──────────
+  const type = activity.type;
+  const diff = activity.difficulty || 0;
+  if (type === 'listening' && diff === 0) {
+    // Just mark this question as "answered" locally; no API call yet
+    setAllFeedback(prev => {
+      const existingIdx = prev.findIndex(f => f.question === currentQuestion);
+      const entry = { question: currentQuestion, deferred: true, total_score: 0, feedback: '' };
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = entry;
+        return next;
+      }
+      return [...prev, entry];
+    });
+    // Show a neutral placeholder so the Next button appears
+    setFeedback({ deferred: true, total_score: 0, feedback: 'Answer recorded — keep going!' });
+    return;                      // ← skip the API call entirely
+  }
     
     setIsSubmitting(true);
     try {
       const userId = user?.id || 'user';
       const activityId = activity._id || activity.id;
       
-      
+      // ✅ FIX: Construct padded answers array with all questions answered
+      // Each position contains the answer for that question, or empty string if unanswered
       const updatedAnswers = { ...answers, [currentQuestion]: currentAnswer };
       const paddedAnswersArray = questions.map((_, i) => updatedAnswers[i] || "");
       
@@ -231,14 +269,56 @@ export default function LearnScreen({ navigation, route }) {
   };
 
   const handleFinish = async () => {
-    // Ensure all questions are answered before considering it complete
-    if (allFeedback.length < questions.length) {
-      Alert.alert(
-        'Activity Incomplete',
-        `You've only answered ${allFeedback.length} out of ${questions.length} questions. Please complete all of them to see your results.`,
-        [{ text: 'OK' }]
-      );
-      return;
+    const type  = activity.type;
+    const diff  = activity.difficulty || 0;
+
+    // ── Listening Easy: all 5 answers must be present ────────────────────────
+    if (type === 'listening' && diff === 0) {
+      const answeredCount = Object.keys(answers).length;
+      if (answeredCount < questions.length) {
+        Alert.alert(
+          'Activity Incomplete',
+          `You've only answered ${answeredCount} out of ${questions.length} questions. Please complete all of them.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Now send all answers at once
+      setIsSubmitting(true);
+      try {
+        const userId     = user?.id || 'user';
+        const activityId = activity._id || activity.id;
+        const paddedAnswersArray = questions.map((_, i) => answers[i] || '');
+
+        const raw = await evaluateAPI.evaluateListeningEasy(activityId, paddedAnswersArray, userId);
+
+        // Rebuild allFeedback from the full results array
+        const fullFeedback = questions.map((_, i) => ({
+          question:    i,
+          total_score: raw.results?.[i]?.correct ? 1 : 0,
+          feedback:    raw.results?.[i]?.feedback || '',
+          ...(raw.results?.[i] || {}),
+        }));
+        setAllFeedback(fullFeedback);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message || 'Connection error';
+        Alert.alert('Evaluation Failed', msg);
+        setIsSubmitting(false);
+        return;
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // ── All other types: original incomplete-guard ───────────────────────
+      if (allFeedback.length < questions.length) {
+        Alert.alert(
+          'Activity Incomplete',
+          `You've only answered ${allFeedback.length} out of ${questions.length} questions. Please complete all of them to see your results.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
     }
 
     if (selectedLanguage) {
@@ -340,6 +420,7 @@ export default function LearnScreen({ navigation, route }) {
             </View>
           ))}
 
+          {/* Topic progress indicator */}
           {topicId && (
             <View style={styles.topicProgressBox}>
               <Text style={styles.topicProgressTitle}>
@@ -608,21 +689,28 @@ export default function LearnScreen({ navigation, route }) {
 
           {/* Per-question feedback */}
           {feedback && (
-            <View style={[styles.feedbackBox, feedback.total_score > 0 ? styles.correctBox : styles.incorrectBox]}>
-              <Text style={styles.feedbackTitle}>
-                {feedback.total_score > 0 ? '✓ Correct!' : '✗ Not quite'}
-              </Text>
-              <Text style={styles.feedbackText}>{feedback.feedback}</Text>
-              {feedback.results?.length > 0 && (
-                <View style={styles.resultsContainer}>
-                  {feedback.results.map((result, idx) => (
-                    <Text key={idx} style={styles.resultText}>
-                      {result.correct_word || result.word}: {result.user_answer}
-                    </Text>
-                  ))}
-                </View>
-              )}
-            </View>
+            feedback.deferred ? (
+              <View style={[styles.feedbackBox, { backgroundColor: '#EEF2FF', borderLeftWidth: 4, borderLeftColor: '#7C83FD' }]}>
+                <Text style={styles.feedbackTitle}>📝 Answer recorded</Text>
+                <Text style={styles.feedbackText}>Keep going — you'll see your score at the end!</Text>
+              </View>
+            ) : (
+              <View style={[styles.feedbackBox, feedback.total_score > 0 ? styles.correctBox : styles.incorrectBox]}>
+                <Text style={styles.feedbackTitle}>
+                  {feedback.total_score > 0 ? '✓ Correct!' : '✗ Not quite'}
+                </Text>
+                <Text style={styles.feedbackText}>{feedback.feedback}</Text>
+                {feedback.results?.length > 0 && (
+                  <View style={styles.resultsContainer}>
+                    {feedback.results.map((result, idx) => (
+                      <Text key={idx} style={styles.resultText}>
+                        {result.correct_word || result.word}: {result.user_answer}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )
           )}
         </View>
       </ScrollView>
