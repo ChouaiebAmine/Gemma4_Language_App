@@ -19,7 +19,7 @@ import LearnScreen from './screens/LearnScreen';
 //import SettingsScreen from './screens/SettingsScreen';
 
 // Context
-import { UserProvider } from './context/UserContext';
+import { UserProvider, useUser } from './context/UserContext';
 import { LanguageProvider } from './context/LanguageContext';
 
 const Stack = createNativeStackNavigator();
@@ -124,7 +124,9 @@ function MainTabs() {
 }
 
 // Root Navigator
-function RootNavigator({ isLoading, userToken }) {
+function RootNavigator() {
+  const { user, isLoading } = useUser();
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -135,8 +137,8 @@ function RootNavigator({ isLoading, userToken }) {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!userToken ? (
-        <Stack.Screen name="Splash" component={SplashScreen} />
+      {!user ? (
+        <Stack.Screen name="Auth" component={SplashScreen} />
       ) : (
         <Stack.Screen name="Main" component={MainTabs} />
       )}
@@ -145,24 +147,13 @@ function RootNavigator({ isLoading, userToken }) {
 }
 
 export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [userToken, setUserToken] = useState(null);
-
-  useEffect(() => {
-    // Simulate initial loading
-    setTimeout(() => {
-      setIsLoading(false);
-      setUserToken('demo_user'); // In real app, get from secure storage
-    }, 2000);
-  }, []);
-
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <UserProvider>
         <LanguageProvider>
           <NavigationContainer>
-            <RootNavigator isLoading={isLoading} userToken={userToken} />
+            <RootNavigator />
           </NavigationContainer>
         </LanguageProvider>
       </UserProvider>

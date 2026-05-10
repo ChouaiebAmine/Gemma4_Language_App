@@ -179,8 +179,8 @@ export const analyticsAPI = {
 // ─── Auth API ────────────────────────────────────────────────────────────────
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (email, password, name, nativeLanguage = 'English') =>
-    api.post('/auth/register', { email, password, name, native_language: nativeLanguage }),
+  register: (email, password, name) =>
+    api.post('/auth/register', { email, password, name }),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.post('/auth/refresh'),
 };

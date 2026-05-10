@@ -4,39 +4,20 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
   ScrollView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
-  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../context/UserContext';
-
-const COMMON_LANGUAGES = [
-  { name: 'English', code: 'en' },
-  { name: 'Spanish', code: 'es' },
-  { name: 'French', code: 'fr' },
-  { name: 'German', code: 'de' },
-  { name: 'Italian', code: 'it' },
-  { name: 'Portuguese', code: 'pt' },
-  { name: 'Chinese', code: 'zh' },
-  { name: 'Japanese', code: 'ja' },
-  { name: 'Korean', code: 'ko' },
-  { name: 'Arabic', code: 'ar' },
-  { name: 'Russian', code: 'ru' },
-  { name: 'Dutch', code: 'nl' },
-];
 
 export default function SplashScreen({ navigation }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [nativeLanguage, setNativeLanguage] = useState('English');
-  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, register } = useUser();
 
@@ -56,7 +37,7 @@ export default function SplashScreen({ navigation }) {
           setLoading(false);
           return;
         }
-        await register(email, password, name, nativeLanguage);
+        await register(email, password, name);
       }
       // Navigation happens automatically after auth success
     } catch (error) {
@@ -76,29 +57,16 @@ export default function SplashScreen({ navigation }) {
 
         <View style={styles.content}>
           {!isLogin && !loading && (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Your name"
-                  value={name}
-                  onChangeText={setName}
-                  editable={!loading}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Native Language</Text>
-                <TouchableOpacity
-                  style={styles.languagePicker}
-                  onPress={() => setShowLanguagePicker(true)}
-                >
-                  <Text style={styles.languagePickerText}>{nativeLanguage}</Text>
-                  <Ionicons name="chevron-down" size={20} color="#666" />
-                </TouchableOpacity>
-              </View>
-            </>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Your name"
+                value={name}
+                onChangeText={setName}
+                editable={!loading}
+              />
+            </View>
           )}
 
           <View style={styles.inputGroup}>
@@ -137,10 +105,7 @@ export default function SplashScreen({ navigation }) {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => {
-            setIsLogin(!isLogin);
-            setShowLanguagePicker(false);
-          }}>
+          <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
             <Text style={styles.switchText}>
               {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
             </Text>
@@ -152,43 +117,6 @@ export default function SplashScreen({ navigation }) {
             <FeatureItem icon="🌍" title="Local Languages" desc="Learn authentic languages" />
           </View>
         </View>
-
-        {/* Language Picker Modal */}
-        <Modal
-          visible={showLanguagePicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowLanguagePicker(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select Your Native Language</Text>
-                <TouchableOpacity onPress={() => setShowLanguagePicker(false)}>
-                  <Ionicons name="close" size={24} color="#333" />
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={COMMON_LANGUAGES}
-                keyExtractor={(item) => item.code}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.languageOption}
-                    onPress={() => {
-                      setNativeLanguage(item.name);
-                      setShowLanguagePicker(false);
-                    }}
-                  >
-                    <Text style={styles.languageOptionText}>{item.name}</Text>
-                    {nativeLanguage === item.name && (
-                      <Ionicons name="checkmark" size={20} color="#FF6B6B" />
-                    )}
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-          </View>
-        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -293,58 +221,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 2,
-  },
-  languagePicker: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f8f8f8',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  languagePickerText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  languageOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  languageOptionText: {
-    fontSize: 16,
-    color: '#333',
   },
 });
