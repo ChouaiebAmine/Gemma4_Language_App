@@ -3,7 +3,6 @@ from models import UserRegisterModel, UserLoginModel, UserModel, HashHelper
 from database import users_collection
 from bson import ObjectId
 import secrets
-from datetime import datetime
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -17,16 +16,13 @@ async def register(user_data: UserRegisterModel):
             detail="Email already registered"
         )
     
-    # 1. Hash the password before saving
-    hashed_password = HashHelper.get_password_hash(user_data.password)
-    
-    # Create new user object
+    # Create new user
     new_user = {
         "email": user_data.email,
-        "password": hashed_password, # Store the hash, not plain text
+        "password": HashHelper.get_password_hash(user_data.password),
         "name": user_data.name,
         "enrolled_languages": [],
-        "created_at": datetime.utcnow()
+        "created_at": ObjectId().generation_time
     }
     
     result = await users_collection.insert_one(new_user)
@@ -45,10 +41,8 @@ async def register(user_data: UserRegisterModel):
 
 @router.post("/login")
 async def login(credentials: UserLoginModel):
-    # 2. Find user by email only first
     user = await users_collection.find_one({"email": credentials.email})
     
-    # 3. Verify the hashed password
     if not user or not HashHelper.verify_password(credentials.password, user["password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
