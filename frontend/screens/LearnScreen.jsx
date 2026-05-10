@@ -164,25 +164,24 @@ const handleSubmit = async () => {
     Alert.alert('Please provide an answer');
     return;
   }
-
-  // ── Listening Easy: defer evaluation until all questions are done ──────────
   const type = activity.type;
   const diff = activity.difficulty || 0;
-  if (type === 'listening' && diff === 0) {
-    // Just mark this question as "answered" locally; no API call yet
+  // ── Easy multi-step: defer evaluation until all questions are done ─────────
+  if (
+    (type === 'listening' && diff === 0) ||
+    (type === 'writing'   && diff === 0) ||
+    (type === 'reading'   && diff === 0)
+  ) {
     setAllFeedback(prev => {
-      const existingIdx = prev.findIndex(f => f.question === currentQuestion);
       const entry = { question: currentQuestion, deferred: true, total_score: 0, feedback: '' };
+      const existingIdx = prev.findIndex(f => f.question === currentQuestion);
       if (existingIdx >= 0) {
-        const next = [...prev];
-        next[existingIdx] = entry;
-        return next;
+        const next = [...prev]; next[existingIdx] = entry; return next;
       }
       return [...prev, entry];
     });
-    // Show a neutral placeholder so the Next button appears
-    setFeedback({ deferred: true, total_score: 0, feedback: 'Answer recorded — keep going!' });
-    return;                      // ← skip the API call entirely
+    setFeedback({ deferred: true, total_score: 0, feedback: '' });
+    return;
   }
     
     setIsSubmitting(true);
@@ -272,8 +271,12 @@ const handleSubmit = async () => {
     const type  = activity.type;
     const diff  = activity.difficulty || 0;
 
-    // ── Listening Easy: all 5 answers must be present ────────────────────────
-    if (type === 'listening' && diff === 0) {
+    const isEasyMultiStep =
+      (type === 'listening' && diff === 0) ||
+      (type === 'writing'   && diff === 0) ||
+      (type === 'reading'   && diff === 0);
+
+    if (isEasyMultiStep) {
       const answeredCount = Object.keys(answers).length;
       if (answeredCount < questions.length) {
         Alert.alert(
@@ -284,16 +287,17 @@ const handleSubmit = async () => {
         return;
       }
 
-      // Now send all answers at once
       setIsSubmitting(true);
       try {
-        const userId     = user?.id || 'user';
-        const activityId = activity._id || activity.id;
+        const userId             = user?.id || 'user';
+        const activityId         = activity._id || activity.id;
         const paddedAnswersArray = questions.map((_, i) => answers[i] || '');
 
-        const raw = await evaluateAPI.evaluateListeningEasy(activityId, paddedAnswersArray, userId);
+        let raw;
+        if (type === 'listening') raw = await evaluateAPI.evaluateListeningEasy(activityId, paddedAnswersArray, userId);
+        else if (type === 'writing') raw = await evaluateAPI.evaluateWritingEasy(activityId, paddedAnswersArray, userId);
+        else if (type === 'reading') raw = await evaluateAPI.evaluateReadingEasy(activityId, paddedAnswersArray, userId);
 
-        // Rebuild allFeedback from the full results array
         const fullFeedback = questions.map((_, i) => ({
           question:    i,
           total_score: raw.results?.[i]?.correct ? 1 : 0,
@@ -310,7 +314,7 @@ const handleSubmit = async () => {
         setIsSubmitting(false);
       }
     } else {
-      // ── All other types: original incomplete-guard ───────────────────────
+      // All other types: original incomplete-guard
       if (allFeedback.length < questions.length) {
         Alert.alert(
           'Activity Incomplete',
