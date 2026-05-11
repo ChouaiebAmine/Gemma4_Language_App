@@ -29,7 +29,7 @@ export default function HomeScreen({ navigation }) {
     refreshAllProgress,
     isLoading,
   } = useLanguage();
-  const { user, stats } = useUser();
+  const { user, stats, logout } = useUser();
 
   useEffect(() => {
     fetchLanguages();
@@ -60,10 +60,16 @@ export default function HomeScreen({ navigation }) {
           <View>
             <Text style={styles.greeting}>Welcome back!</Text>
             <Text style={styles.username}>{user?.name || 'Learner'}</Text>
+          
           </View>
+          
           <View style={styles.headerStats}>
             <StatBadge icon={<Ionicons name="flame" size={20} color="#fff" />} value={stats?.streak || 0} label="Streak" />
             <StatBadge icon={<Ionicons name="star" size={20} color="#fff" />} value={stats?.points || 0} label="Points" />
+          <TouchableOpacity onPress={logout}>
+            <Text style={{ color: '#fff', fontSize: 12, marginTop: 4,fontWeight:'bold' }}>Logout</Text>
+            <Ionicons name="log-out" size={24} color="#fff" />
+          </TouchableOpacity>
           </View>
         </View>
       </LinearGradient>
