@@ -114,7 +114,7 @@ function LanguageItem({ language, onPress }) {
             {language.native_speakers && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {Math.floor(language.native_speakers / 1000)}K speakers
+                  {Math.floor(language.native_speakers / 1000)}M speakers
                 </Text>
               </View>
             )}
