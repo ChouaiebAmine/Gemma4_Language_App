@@ -55,6 +55,11 @@ export default function LanguagesScreen({ navigation }) {
             placeholderTextColor="#ccc"
           />
         </View>
+        <View style={styles.countContainer}>
+          <Text style={styles.countText}>
+            Language count: <Text style={styles.countNumber}>{filteredLanguages.length}</Text>
+          </Text>
+        </View>
       </LinearGradient>
 
       {/* Languages List */}
