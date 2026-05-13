@@ -107,7 +107,7 @@ export default function TopicsScreen({ navigation }) {
         />
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>{<Ionicons name="robot" size={40} color="#ccc" />}</Text>
+          <Text style={styles.emptyIcon}>{<Ionicons name="book" size={40} color="#ccc" />}</Text>
           <Text style={styles.emptyText}>No topics found</Text>
           <TouchableOpacity style={styles.generateButton} onPress={generateAiTopics}>
             <Text style={styles.buttonText}>Generate AI Topics</Text>

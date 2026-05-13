@@ -127,6 +127,21 @@ function LanguageItem({ language, onPress }) {
 }
 
 const styles = StyleSheet.create({
+
+  countContainer: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  countText: {
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.9,
+  },
+  countNumber: {
+    fontWeight: '700',
+    color: '#d0b163', 
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
